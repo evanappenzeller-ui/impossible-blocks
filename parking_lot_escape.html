@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parking Lot Escape</title>
+<style>
+  /* ============ Layout & theme ============ */
+  :root {
+    --bg-1: #0f172a;
+    --bg-2: #1e293b;
+    --panel: #111827;
+    --ink: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #f97316;
+    --accent-2: #fbbf24;
+    --good: #22c55e;
+    --cell: #1e293b;
+    --cell-line: #334155;
+    --board: #0b1220;
+    --target: #ef4444;
+    --target-2: #f87171;
+    --car-h-a: #38bdf8;
+    --car-h-b: #818cf8;
+    --car-h-c: #a78bfa;
+    --car-h-d: #2dd4bf;
+    --car-v-a: #facc15;
+    --car-v-b: #fb923c;
+    --car-v-c: #84cc16;
+    --car-v-d: #f472b6;
+    --shadow: 0 6px 14px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(circle at 30% 0%, #1e293b 0%, #0b1220 60%, #060912 100%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  #app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .controls button, .modal button {
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, transform .1s, border-color .15s;
+  }
+  .controls button:hover:not(:disabled), .modal button:hover:not(:disabled) {
+    background: #1f2937;
+    border-color: var(--accent);
+  }
+  .controls button:active:not(:disabled) { transform: scale(0.97); }
+  .controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .controls button.primary {
+    background: linear-gradient(180deg, var(--accent), #d35400);
+    border-color: transparent;
+    color: #1a0a02;
+  }
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .stats b { color: var(--ink); font-weight: 600; }
+
+  /* ============ Board ============ */
+  main {
+    display: flex;
+    justify-content: center;
+  }
+  #board-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 1 / 1;
+  }
+  #board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--board);
+    border: 3px solid #334155;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 30px rgba(0,0,0,.6);
+    overflow: visible;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  /* Grid cells drawn as background pattern via SVG */
+  .grid-bg {
+    position: absolute;
+    inset: 6px;
+    background-image:
+      linear-gradient(to right, #243046 1px, transparent 1px),
+      linear-gradient(to bottom, #243046 1px, transparent 1px);
+    background-size: calc((100% ) / var(--cols)) calc((100% ) / var(--rows));
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  /* Exit marker on right edge */
+  .exit {
+    position: absolute;
+    right: -3px;
+    width: 14px;
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    border-radius: 0 6px 6px 0;
+    box-shadow: 0 0 16px rgba(251, 146, 60, 0.7);
+    pointer-events: none;
+  }
+  .exit::before {
+    content: 'EXIT';
+    position: absolute;
+    top: 50%;
+    left: 22px;
+    transform: translateY(-50%);
+    color: var(--accent-2);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(251, 146, 60, 0.6);
+  }
+
+  /* ============ Cars ============ */
+  .car {
+    position: absolute;
+    border-radius: 10px;
+    cursor: grab;
+    box-shadow: var(--shadow), inset 0 -6px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.18);
+    transition: transform 0.18s cubic-bezier(.2,.9,.3,1.2), box-shadow 0.15s;
+    will-change: transform;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: rgba(255,255,255,.85);
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .car.dragging {
+    transition: none;
+    cursor: grabbing;
+    box-shadow: 0 12px 24px rgba(0,0,0,.55), inset 0 -6px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.22);
+    z-index: 5;
+  }
+  .car.target {
+    background: linear-gradient(180deg, var(--target-2), var(--target));
+    color: #2a0606;
+  }
+  .car.target::after {
+    content: '★';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: rgba(0,0,0,.45);
+    pointer-events: none;
+  }
+  /* Other car palettes assigned via JS class */
+  .car.c1 { background: linear-gradient(180deg, #7dd3fc, #38bdf8); }
+  .car.c2 { background: linear-gradient(180deg, #a5b4fc, #6366f1); }
+  .car.c3 { background: linear-gradient(180deg, #c4b5fd, #8b5cf6); }
+  .car.c4 { background: linear-gradient(180deg, #5eead4, #14b8a6); }
+  .car.c5 { background: linear-gradient(180deg, #fde68a, #f59e0b); }
+  .car.c6 { background: linear-gradient(180deg, #fdba74, #ea580c); }
+  .car.c7 { background: linear-gradient(180deg, #bef264, #65a30d); }
+  .car.c8 { background: linear-gradient(180deg, #f9a8d4, #db2777); }
+
+  /* ============ Win overlay ============ */
+  #win-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(11, 18, 32, .82);
+    border-radius: 14px;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+    animation: fadein .25s ease;
+  }
+  #win-overlay.hidden { display: none; }
+  .win-card {
+    background: linear-gradient(180deg, #1e293b, #0f172a);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 28px 32px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+    max-width: 320px;
+  }
+  .win-card h2 {
+    margin: 0 0 8px;
+    background: linear-gradient(90deg, var(--good), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: 32px;
+  }
+  .win-card p { margin: 0 0 18px; color: var(--muted); }
+  .win-card button {
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    border: none;
+    color: #1a0a02;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  /* ============ Level modal ============ */
+  #level-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  #level-modal.hidden { display: none; }
+  .modal {
+    background: linear-gradient(180deg, #1e293b, #0f172a);
+    padding: 24px;
+    border-radius: 14px;
+    border: 1px solid #334155;
+    width: min(92vw, 520px);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin-top: 0; }
+  #level-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .level-btn {
+    aspect-ratio: 1 / 1;
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: var(--ink);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 16px;
+    transition: background .15s, transform .1s;
+  }
+  .level-btn:hover:not(:disabled) {
+    background: #1f2937;
+    transform: scale(1.04);
+  }
+  .level-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .level-btn.solved {
+    border-color: var(--good);
+    box-shadow: 0 0 0 1px var(--good);
+  }
+  .level-btn.current {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .level-btn .best {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  .difficulty-tag {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin: 4px 0 8px;
+  }
+  .difficulty-tag.easy { color: #4ade80; }
+  .difficulty-tag.medium { color: #facc15; }
+  .difficulty-tag.hard { color: #fb923c; }
+  .difficulty-tag.expert { color: #ef4444; }
+
+  @keyframes fadein {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(251, 146, 60, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+  }
+  .car.target.hint { animation: pulse 1.5s infinite; }
+
+  @media (max-width: 480px) {
+    header h1 { font-size: 22px; }
+    .stats { font-size: 13px; gap: 12px; }
+    .controls button { padding: 7px 10px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Parking Lot Escape</h1>
+    <div class="controls">
+      <button id="btn-reset">Reset</button>
+      <button id="btn-undo">Undo</button>
+      <button id="btn-prev">&#9664; Prev</button>
+      <button id="btn-next" disabled>Next &#9654;</button>
+      <button id="btn-levels">Levels</button>
+    </div>
+    <div class="stats">
+      <span>Level <b id="level-num">1</b></span>
+      <span id="diff-badge"></span>
+      <span>Moves: <b id="moves">0</b></span>
+      <span>Best: <b id="best">&mdash;</b></span>
+      <span>Time: <b id="time">0:00</b></span>
+    </div>
+  </header>
+  <main>
+    <div id="board-wrap">
+      <div id="board"></div>
+      <div id="win-overlay" class="hidden">
+        <div class="win-card">
+          <h2>Solved!</h2>
+          <p id="win-stats"></p>
+          <button id="btn-next-from-win">Next Level &#9654;</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="level-modal" class="hidden">
+  <div class="modal">
+    <h2>Select Level</h2>
+    <div id="level-grid"></div>
+    <button id="btn-close-levels">Close</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   PARKING LOT ESCAPE
+   - 6x6 grid (configurable), Rush-Hour style sliding-block puzzle
+   - Vehicles slide along their orientation axis only
+   - Target (red) car must exit through the right edge of row 2 (0-indexed)
+   - Mouse drag + keyboard (arrow keys after clicking a car) controls
+   - Move counter, undo, reset, level select, best-moves tracking
+   ========================================================================= */
+
+(() => {
+  'use strict';
+
+  // ------------ Constants ------------
+  const GRID_ROWS = 6;
+  const GRID_COLS = 6;
+  const EXIT_ROW = 2; // target exits through this row
+  const STORAGE_KEY = 'parking_lot_escape_v1';
+
+  // ------------ Levels ------------
+  // Each car: { dir: 'h'|'v', len: 2|3, row, col, target?: bool }
+  // Target is always horizontal length 2 on EXIT_ROW.
+  const LEVELS = [
+    // ===== Easy 1-5 =====
+    { name: 1, diff: 'easy', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 1, col: 4 },
+    ]},
+    { name: 2, diff: 'easy', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 1, col: 3 },
+      { dir: 'v', len: 2, row: 1, col: 5 },
+    ]},
+    { name: 3, diff: 'easy', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 3, row: 0, col: 3 },
+      { dir: 'v', len: 2, row: 1, col: 5 },
+    ]},
+    { name: 4, diff: 'easy', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 3, row: 0, col: 3 },
+      { dir: 'v', len: 2, row: 1, col: 4 },
+      { dir: 'h', len: 2, row: 5, col: 0 },
+    ]},
+    { name: 5, diff: 'easy', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 0, col: 3 },
+      { dir: 'v', len: 2, row: 1, col: 5 },
+      { dir: 'h', len: 3, row: 3, col: 1 },
+      { dir: 'v', len: 2, row: 4, col: 4 },
+    ]},
+
+    // ===== Medium 6-10 =====
+    { name: 6, diff: 'medium', cars: [
+      { dir: 'h', len: 2, row: 2, col: 1, target: true },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'h', len: 2, row: 0, col: 0 },
+      { dir: 'v', len: 2, row: 0, col: 3 },
+      { dir: 'h', len: 3, row: 5, col: 0 },
+      { dir: 'v', len: 2, row: 3, col: 3 },
+    ]},
+    { name: 7, diff: 'medium', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 3, row: 0, col: 3 },
+      { dir: 'h', len: 2, row: 3, col: 0 },
+      { dir: 'v', len: 2, row: 4, col: 2 },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'h', len: 2, row: 5, col: 4 },
+    ]},
+    { name: 8, diff: 'medium', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 0, col: 2 },
+      { dir: 'v', len: 3, row: 0, col: 3 },
+      { dir: 'h', len: 2, row: 3, col: 0 },
+      { dir: 'v', len: 2, row: 0, col: 5 },
+      { dir: 'v', len: 3, row: 3, col: 5 },
+      { dir: 'h', len: 2, row: 5, col: 0 },
+    ]},
+    { name: 9, diff: 'medium', cars: [
+      { dir: 'h', len: 2, row: 2, col: 1, target: true },
+      { dir: 'v', len: 2, row: 0, col: 0 },
+      { dir: 'h', len: 2, row: 0, col: 1 },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'v', len: 2, row: 4, col: 0 },
+      { dir: 'h', len: 3, row: 5, col: 1 },
+      { dir: 'v', len: 2, row: 3, col: 4 },
+      { dir: 'h', len: 2, row: 3, col: 2 },
+    ]},
+    { name: 10, diff: 'medium', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 1, col: 2 },
+      { dir: 'v', len: 3, row: 0, col: 3 },
+      { dir: 'h', len: 2, row: 0, col: 4 },
+      { dir: 'v', len: 2, row: 3, col: 1 },
+      { dir: 'h', len: 2, row: 3, col: 2 },
+      { dir: 'v', len: 2, row: 4, col: 4 },
+      { dir: 'h', len: 2, row: 5, col: 0 },
+    ]},
+    // ===== Hard 11-15 =====
+    { name: 11, diff: 'hard', cars: [
+      { dir: 'h', len: 2, row: 2, col: 1, target: true },
+      { dir: 'v', len: 3, row: 0, col: 0 },
+      { dir: 'h', len: 2, row: 0, col: 1 },
+      { dir: 'v', len: 2, row: 0, col: 3 },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'h', len: 2, row: 3, col: 0 },
+      { dir: 'v', len: 2, row: 3, col: 4 },
+      { dir: 'h', len: 3, row: 4, col: 1 },
+      { dir: 'h', len: 3, row: 5, col: 2 },
+    ]},
+    { name: 12, diff: 'hard', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 0, col: 0 },
+      { dir: 'h', len: 3, row: 0, col: 1 },
+      { dir: 'v', len: 3, row: 0, col: 4 },
+      { dir: 'v', len: 2, row: 0, col: 5 },
+      { dir: 'v', len: 2, row: 3, col: 0 },
+      { dir: 'h', len: 2, row: 3, col: 1 },
+      { dir: 'v', len: 3, row: 3, col: 3 },
+      { dir: 'h', len: 2, row: 4, col: 4 },
+      { dir: 'h', len: 3, row: 5, col: 1 },
+    ]},
+    { name: 13, diff: 'hard', cars: [
+      { dir: 'h', len: 2, row: 2, col: 1, target: true },
+      { dir: 'v', len: 2, row: 0, col: 0 },
+      { dir: 'h', len: 3, row: 0, col: 1 },
+      { dir: 'v', len: 2, row: 0, col: 4 },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'v', len: 2, row: 3, col: 0 },
+      { dir: 'v', len: 3, row: 1, col: 3 },
+      { dir: 'h', len: 2, row: 4, col: 1 },
+      { dir: 'h', len: 2, row: 4, col: 4 },
+      { dir: 'h', len: 3, row: 5, col: 1 },
+    ]},
+    { name: 14, diff: 'hard', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 3, row: 0, col: 2 },
+      { dir: 'h', len: 2, row: 0, col: 0 },
+      { dir: 'v', len: 2, row: 0, col: 3 },
+      { dir: 'h', len: 2, row: 0, col: 4 },
+      { dir: 'v', len: 3, row: 1, col: 5 },
+      { dir: 'h', len: 3, row: 3, col: 0 },
+      { dir: 'v', len: 2, row: 3, col: 3 },
+      { dir: 'v', len: 2, row: 4, col: 4 },
+      { dir: 'h', len: 2, row: 5, col: 0 },
+    ]},
+    { name: 15, diff: 'hard', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 3, row: 0, col: 1 },
+      { dir: 'v', len: 2, row: 0, col: 2 },
+      { dir: 'h', len: 2, row: 0, col: 3 },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'h', len: 2, row: 1, col: 3 },
+      { dir: 'h', len: 3, row: 3, col: 0 },
+      { dir: 'v', len: 2, row: 3, col: 3 },
+      { dir: 'v', len: 3, row: 3, col: 4 },
+      { dir: 'h', len: 3, row: 5, col: 0 },
+    ]},
+
+    // ===== Expert 16-17 =====
+    { name: 16, diff: 'expert', cars: [
+      { dir: 'h', len: 2, row: 2, col: 1, target: true },
+      { dir: 'v', len: 3, row: 0, col: 0 },
+      { dir: 'h', len: 2, row: 0, col: 1 },
+      { dir: 'v', len: 2, row: 0, col: 3 },
+      { dir: 'h', len: 2, row: 0, col: 4 },
+      { dir: 'v', len: 3, row: 1, col: 5 },
+      { dir: 'h', len: 3, row: 3, col: 0 },
+      { dir: 'v', len: 2, row: 3, col: 3 },
+      { dir: 'h', len: 2, row: 4, col: 4 },
+      { dir: 'h', len: 3, row: 5, col: 0 },
+      { dir: 'v', len: 2, row: 4, col: 3 },
+    ]},
+    { name: 17, diff: 'expert', cars: [
+      { dir: 'h', len: 2, row: 2, col: 0, target: true },
+      { dir: 'v', len: 2, row: 0, col: 0 },
+      { dir: 'v', len: 3, row: 0, col: 1 },
+      { dir: 'h', len: 2, row: 0, col: 2 },
+      { dir: 'v', len: 2, row: 0, col: 4 },
+      { dir: 'v', len: 3, row: 0, col: 5 },
+      { dir: 'h', len: 2, row: 1, col: 2 },
+      { dir: 'h', len: 3, row: 3, col: 0 },
+      { dir: 'v', len: 3, row: 3, col: 3 },
+      { dir: 'h', len: 2, row: 3, col: 4 },
+      { dir: 'h', len: 2, row: 4, col: 4 },
+      { dir: 'h', len: 3, row: 5, col: 1 },
+    ]},
+  ];
+
+  // ------------ Persistent state (best moves per level) ------------
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : { best: {}, solved: {} };
+    } catch (e) {
+      return { best: {}, solved: {} };
+    }
+  }
+  function saveProgress() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); } catch(e) {}
+  }
+  const progress = loadProgress();
+
+  // ------------ Game state ------------
+  let levelIdx = 0;
+  let cars = [];        // active vehicles (deep-cloned from level)
+  let history = [];     // move history for undo
+  let moves = 0;
+  let won = false;
+  let timerStart = 0;
+  let timerInterval = null;
+
+  // ------------ DOM ------------
+  const boardEl = document.getElementById('board');
+  const winOverlay = document.getElementById('win-overlay');
+  const winStats = document.getElementById('win-stats');
+  const movesEl = document.getElementById('moves');
+  const bestEl = document.getElementById('best');
+  const timeEl = document.getElementById('time');
+  const levelNumEl = document.getElementById('level-num');
+  const diffBadge = document.getElementById('diff-badge');
+  const btnNext = document.getElementById('btn-next');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnReset = document.getElementById('btn-reset');
+  const btnUndo = document.getElementById('btn-undo');
+  const btnLevels = document.getElementById('btn-levels');
+  const btnNextFromWin = document.getElementById('btn-next-from-win');
+  const btnCloseLevels = document.getElementById('btn-close-levels');
+  const levelModal = document.getElementById('level-modal');
+  const levelGrid = document.getElementById('level-grid');
+
+  // ------------ Helpers ------------
+  function cellSize() {
+    // Inner area is `inset: 6px`, so subtract 12 from each dimension.
+    const rect = boardEl.getBoundingClientRect();
+    return (rect.width - 12) / GRID_COLS;
+  }
+  function cellInset() { return 6; }
+
+  function buildOccupancyGrid(carList) {
+    const g = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
+    carList.forEach((c, idx) => {
+      for (let i = 0; i < c.len; i++) {
+        const r = c.row + (c.dir === 'v' ? i : 0);
+        const cc = c.col + (c.dir === 'h' ? i : 0);
+        if (r >= 0 && r < GRID_ROWS && cc >= 0 && cc < GRID_COLS) g[r][cc] = idx;
+      }
+    });
+    return g;
+  }
+
+  // Returns the maximum number of cells `car` can move in `delta` direction (-1 or +1)
+  // along its axis without colliding with others or going off-grid.
+  // For the target, allows sliding off the right (positive) for a win.
+  function maxSlide(carIdx, delta) {
+    const car = cars[carIdx];
+    const grid = buildOccupancyGrid(cars);
+    // Clear this car's own cells from grid
+    for (let i = 0; i < car.len; i++) {
+      const r = car.row + (car.dir === 'v' ? i : 0);
+      const c = car.col + (car.dir === 'h' ? i : 0);
+      grid[r][c] = -1;
+    }
+    let steps = 0;
+    while (true) {
+      const next = steps + 1;
+      // Compute position after `next` steps in `delta` direction
+      let nr = car.row, nc = car.col;
+      if (car.dir === 'h') nc += delta * next;
+      else nr += delta * next;
+
+      // Compute the cell that becomes newly occupied as we advance one more step
+      let cr, cc;
+      if (delta > 0) {
+        // Moving forward: leading edge cell
+        cr = car.row + (car.dir === 'v' ? car.len - 1 + next : 0);
+        cc = car.col + (car.dir === 'h' ? car.len - 1 + next : 0);
+      } else {
+        // Moving backward: trailing edge cell
+        cr = car.row + (car.dir === 'v' ? -next : 0);
+        cc = car.col + (car.dir === 'h' ? 0 : 0);
+        if (car.dir === 'h') cc = car.col - next;
+      }
+
+      // Off-grid check
+      const offGrid = cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS;
+      if (offGrid) {
+        // Special: target sliding off the right is allowed (but only one extra step beyond)
+        if (car.target && car.dir === 'h' && delta > 0 && cr === EXIT_ROW) {
+          // Allow exit slide: count extra steps until fully off
+          steps = next;
+          // Continue once more? no — once we step beyond the right edge with our leading
+          // cell, we treat the puzzle as solved. We just return enough to indicate exit.
+          // Returning a large number lets drag logic detect exit.
+          return steps + GRID_COLS; // generous so caller knows the exit is reachable
+        }
+        break;
+      }
+      if (grid[cr][cc] !== -1) break;
+      steps = next;
+    }
+    return steps;
+  }
+
+  function applyMove(carIdx, delta, steps) {
+    if (steps === 0) return false;
+    const car = cars[carIdx];
+    history.push({ carIdx, delta: -delta, steps });
+    if (car.dir === 'h') car.col += delta * steps;
+    else car.row += delta * steps;
+    moves++;
+    return true;
+  }
+
+  function undoMove() {
+    if (history.length === 0) return;
+    const m = history.pop();
+    const car = cars[m.carIdx];
+    if (car.dir === 'h') car.col += m.delta * m.steps;
+    else car.row += m.delta * m.steps;
+    moves = Math.max(0, moves - 1);
+    won = false;
+    winOverlay.classList.add('hidden');
+    btnNext.disabled = !progress.solved[levelIdx];
+    renderCars();
+    updateHud();
+  }
+
+  // ------------ Rendering ------------
+  function buildBoard() {
+    boardEl.style.setProperty('--cols', GRID_COLS);
+    boardEl.style.setProperty('--rows', GRID_ROWS);
+    boardEl.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'grid-bg';
+    boardEl.appendChild(grid);
+
+    // Exit marker
+    const exit = document.createElement('div');
+    exit.className = 'exit';
+    const inset = cellInset();
+    const cs = cellSize();
+    exit.style.top = `${inset + EXIT_ROW * cs}px`;
+    exit.style.height = `${cs}px`;
+    boardEl.appendChild(exit);
+  }
+
+  function renderCars() {
+    // Remove existing car elements (keep grid + exit)
+    [...boardEl.querySelectorAll('.car')].forEach(el => el.remove());
+    const cs = cellSize();
+    const inset = cellInset();
+    const palette = ['c1','c2','c3','c4','c5','c6','c7','c8'];
+    let p = 0;
+    cars.forEach((car, idx) => {
+      const el = document.createElement('div');
+      el.className = 'car ' + (car.target ? 'target' : palette[p++ % palette.length]);
+      el.dataset.idx = idx;
+      const w = (car.dir === 'h' ? car.len : 1) * cs;
+      const h = (car.dir === 'v' ? car.len : 1) * cs;
+      const pad = 4;
+      el.style.width = `${w - pad * 2}px`;
+      el.style.height = `${h - pad * 2}px`;
+      el.style.left = `${inset + car.col * cs + pad}px`;
+      el.style.top = `${inset + car.row * cs + pad}px`;
+      if (car.target) el.title = 'Target — drive me out!';
+      attachInput(el, idx);
+      boardEl.appendChild(el);
+    });
+  }
+
+  // Reposition cars without recreating (used after window resize)
+  function repositionCars() {
+    const cs = cellSize();
+    const inset = cellInset();
+    const pad = 4;
+    [...boardEl.querySelectorAll('.car')].forEach(el => {
+      const idx = +el.dataset.idx;
+      const car = cars[idx];
+      el.style.width = `${(car.dir === 'h' ? car.len : 1) * cs - pad * 2}px`;
+      el.style.height = `${(car.dir === 'v' ? car.len : 1) * cs - pad * 2}px`;
+      el.style.left = `${inset + car.col * cs + pad}px`;
+      el.style.top = `${inset + car.row * cs + pad}px`;
+    });
+    // Reposition exit
+    const exit = boardEl.querySelector('.exit');
+    if (exit) {
+      exit.style.top = `${inset + EXIT_ROW * cs}px`;
+      exit.style.height = `${cs}px`;
+    }
+  }
+
+  function updateHud() {
+    const lvl = LEVELS[levelIdx];
+    levelNumEl.textContent = lvl.name;
+    movesEl.textContent = moves;
+    const best = progress.best[levelIdx];
+    bestEl.textContent = best != null ? best : '—';
+    diffBadge.textContent = '';
+    diffBadge.innerHTML = `<span class="difficulty-tag ${lvl.diff}">${lvl.diff.toUpperCase()}</span>`;
+    btnUndo.disabled = history.length === 0;
+    btnPrev.disabled = levelIdx === 0;
+    btnNext.disabled = !progress.solved[levelIdx] || levelIdx >= LEVELS.length - 1;
+  }
+
+  // ------------ Input (mouse + touch + keyboard) ------------
+  let dragState = null;
+  let selectedCarIdx = null;
+
+  function attachInput(el, idx) {
+    el.addEventListener('mousedown', (e) => startDrag(e, idx, el));
+    el.addEventListener('touchstart', (e) => startDrag(e, idx, el), { passive: false });
+    el.addEventListener('click', () => { selectedCarIdx = idx; });
+  }
+
+  function startDrag(e, idx, el) {
+    if (won) return;
+    e.preventDefault();
+    const car = cars[idx];
+    const cs = cellSize();
+    const inset = cellInset();
+    const pageX = e.touches ? e.touches[0].clientX : e.clientX;
+    const pageY = e.touches ? e.touches[0].clientY : e.clientY;
+    const maxFwd = maxSlide(idx, +1);
+    const maxBwd = maxSlide(idx, -1);
+    dragState = {
+      idx, el, car,
+      cs, inset,
+      startX: pageX, startY: pageY,
+      origCol: car.col, origRow: car.row,
+      maxFwd, maxBwd,
+      pad: 4,
+      dx: 0, dy: 0,
+    };
+    el.classList.add('dragging');
+    selectedCarIdx = idx;
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+  }
+
+  function onDragMove(e) {
+    if (!dragState) return;
+    e.preventDefault();
+    const pageX = e.touches ? e.touches[0].clientX : e.clientX;
+    const pageY = e.touches ? e.touches[0].clientY : e.clientY;
+    const { car, cs, maxFwd, maxBwd, inset, pad, origRow, origCol, el } = dragState;
+    let dx = pageX - dragState.startX;
+    let dy = pageY - dragState.startY;
+    if (car.dir === 'h') {
+      // Constrain to horizontal axis. Allow target to slide a bit past the right edge for exit.
+      const minPx = -maxBwd * cs;
+      const maxPx = maxFwd * cs;
+      dx = Math.max(minPx, Math.min(maxPx, dx));
+      dy = 0;
+    } else {
+      const minPx = -maxBwd * cs;
+      const maxPx = maxFwd * cs;
+      dy = Math.max(minPx, Math.min(maxPx, dy));
+      dx = 0;
+    }
+    dragState.dx = dx;
+    dragState.dy = dy;
+    el.style.left = `${inset + origCol * cs + pad + dx}px`;
+    el.style.top = `${inset + origRow * cs + pad + dy}px`;
+  }
+
+  function endDrag(e) {
+    if (!dragState) return;
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('touchmove', onDragMove);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchend', endDrag);
+    const { idx, el, car, cs, dx, dy, maxFwd, maxBwd, inset, pad, origRow, origCol } = dragState;
+    el.classList.remove('dragging');
+
+    // Compute snapped step count
+    const axisDelta = car.dir === 'h' ? dx : dy;
+    let steps = Math.round(axisDelta / cs);
+    let dir = Math.sign(steps);
+    steps = Math.abs(steps);
+    if (dir > 0) steps = Math.min(steps, maxFwd);
+    if (dir < 0) steps = Math.min(steps, maxBwd);
+
+    // Check if this is the winning slide-off for target
+    let winningSlide = false;
+    if (car.target && car.dir === 'h' && dir > 0) {
+      // If user dragged enough to push the target past the right edge
+      const rightEdgeCol = car.col + car.len - 1;
+      const stepsToEdge = (GRID_COLS - 1) - rightEdgeCol;
+      // If our snapped steps reach or exceed the right edge AND the path is clear, treat as exit
+      if (steps >= stepsToEdge && stepsToEdge >= 0) {
+        // Also accept if user overshot — clamp to exit
+        winningSlide = canTargetExit(idx);
+      }
+    }
+
+    if (steps > 0) {
+      applyMove(idx, dir, steps);
+    }
+
+    // Snap visually to final position (or animate off for win)
+    const newCol = car.col, newRow = car.row;
+    if (winningSlide) {
+      // Animate off-screen
+      el.style.transition = 'left 0.4s cubic-bezier(.5,0,.6,1), opacity 0.4s';
+      el.style.left = `${inset + (GRID_COLS + 1) * cs + pad}px`;
+      el.style.opacity = '0.6';
+      setTimeout(() => triggerWin(), 380);
+    } else {
+      el.style.left = `${inset + newCol * cs + pad}px`;
+      el.style.top = `${inset + newRow * cs + pad}px`;
+    }
+
+    dragState = null;
+    updateHud();
+  }
+
+  // Returns true if the target can slide right off the board from current position.
+  function canTargetExit(idx) {
+    const car = cars[idx];
+    if (!car.target || car.dir !== 'h') return false;
+    const grid = buildOccupancyGrid(cars);
+    for (let i = 0; i < car.len; i++) grid[car.row][car.col + i] = -1;
+    for (let c = car.col + car.len; c < GRID_COLS; c++) {
+      if (grid[car.row][c] !== -1) return false;
+    }
+    return true;
+  }
+
+  function triggerWin() {
+    won = true;
+    stopTimer();
+    progress.solved[levelIdx] = true;
+    const prevBest = progress.best[levelIdx];
+    if (prevBest == null || moves < prevBest) progress.best[levelIdx] = moves;
+    saveProgress();
+    const elapsed = formatTime(timerElapsed());
+    const isNew = (prevBest == null || moves < prevBest);
+    winStats.innerHTML = `Solved in <b>${moves}</b> moves &middot; ${elapsed}` +
+      (isNew ? '<br><span style="color:var(--accent-2)">★ New Best!</span>' : '');
+    winOverlay.classList.remove('hidden');
+    updateHud();
+  }
+
+  // Keyboard controls: arrow keys move the selected car
+  window.addEventListener('keydown', (e) => {
+    if (won) return;
+    if (selectedCarIdx == null) return;
+    const car = cars[selectedCarIdx];
+    let delta = 0, axis = '';
+    if (e.key === 'ArrowLeft')  { axis = 'h'; delta = -1; }
+    if (e.key === 'ArrowRight') { axis = 'h'; delta = +1; }
+    if (e.key === 'ArrowUp')    { axis = 'v'; delta = -1; }
+    if (e.key === 'ArrowDown')  { axis = 'v'; delta = +1; }
+    if (!axis) return;
+    if (axis !== car.dir) return;
+    e.preventDefault();
+    const stepsAvail = maxSlide(selectedCarIdx, delta);
+    if (stepsAvail === 0) return;
+    // Move 1 step per key press for precision
+    applyMove(selectedCarIdx, delta, 1);
+    if (car.target && canTargetExit(selectedCarIdx) && delta > 0 && car.col + car.len === GRID_COLS) {
+      // Animate off
+      const cs = cellSize(), inset = cellInset(), pad = 4;
+      const el = boardEl.querySelector(`.car[data-idx="${selectedCarIdx}"]`);
+      if (el) {
+        el.style.transition = 'left 0.4s cubic-bezier(.5,0,.6,1), opacity 0.4s';
+        el.style.left = `${inset + (GRID_COLS + 1) * cs + pad}px`;
+        el.style.opacity = '0.6';
+      }
+      setTimeout(() => triggerWin(), 380);
+    } else {
+      renderCars();
+    }
+    updateHud();
+  });
+
+  // ------------ Timer ------------
+  function startTimer() {
+    timerStart = Date.now();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timeEl.textContent = formatTime(timerElapsed());
+    }, 500);
+  }
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  }
+  function timerElapsed() { return Math.floor((Date.now() - timerStart) / 1000); }
+  function formatTime(s) {
+    const m = Math.floor(s / 60), sec = s % 60;
+    return `${m}:${sec.toString().padStart(2,'0')}`;
+  }
+
+  // ------------ Level loading ------------
+  function loadLevel(idx) {
+    if (idx < 0 || idx >= LEVELS.length) return;
+    levelIdx = idx;
+    cars = LEVELS[idx].cars.map(c => ({ ...c }));
+    history = [];
+    moves = 0;
+    won = false;
+    winOverlay.classList.add('hidden');
+    selectedCarIdx = null;
+    buildBoard();
+    renderCars();
+    updateHud();
+    startTimer();
+  }
+
+  // ------------ Level menu ------------
+  function openLevelMenu() {
+    levelGrid.innerHTML = '';
+    LEVELS.forEach((lvl, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'level-btn';
+      const unlocked = i === 0 || progress.solved[i - 1] || progress.solved[i];
+      btn.disabled = !unlocked;
+      if (progress.solved[i]) btn.classList.add('solved');
+      if (i === levelIdx) btn.classList.add('current');
+      const best = progress.best[i];
+      btn.innerHTML = `<span>${lvl.name}</span>` +
+        (best != null ? `<span class="best">★ ${best}</span>` : '');
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        levelModal.classList.add('hidden');
+        loadLevel(i);
+      });
+      levelGrid.appendChild(btn);
+    });
+    levelModal.classList.remove('hidden');
+  }
+
+  // ------------ Wire up controls ------------
+  btnReset.addEventListener('click', () => loadLevel(levelIdx));
+  btnUndo.addEventListener('click', undoMove);
+  btnPrev.addEventListener('click', () => loadLevel(Math.max(0, levelIdx - 1)));
+  btnNext.addEventListener('click', () => loadLevel(Math.min(LEVELS.length - 1, levelIdx + 1)));
+  btnLevels.addEventListener('click', openLevelMenu);
+  btnCloseLevels.addEventListener('click', () => levelModal.classList.add('hidden'));
+  btnNextFromWin.addEventListener('click', () => {
+    if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
+    else winOverlay.classList.add('hidden');
+  });
+  levelModal.addEventListener('click', (e) => {
+    if (e.target === levelModal) levelModal.classList.add('hidden');
+  });
+
+  window.addEventListener('resize', () => {
+    repositionCars();
+    const exit = boardEl.querySelector('.exit');
+    if (exit) {
+      const inset = cellInset(), cs = cellSize();
+      exit.style.top = `${inset + EXIT_ROW * cs}px`;
+      exit.style.height = `${cs}px`;
+    }
+  });
+
+  // ------------ BFS verifier (runs once, logs unsolvable levels) ------------
+  function encodeState(carList) {
+    return carList.map(c => `${c.row},${c.col}`).join('|');
+  }
+  function isSolved(carList) {
+    const t = carList.find(c => c.target);
+    if (!t) return false;
+    // target must be free to slide off right edge
+    const grid = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
+    carList.forEach((c, idx) => {
+      for (let i = 0; i < c.len; i++) {
+        const r = c.row + (c.dir === 'v' ? i : 0);
+        const cc = c.col + (c.dir === 'h' ? i : 0);
+        grid[r][cc] = idx;
+      }
+    });
+    for (let i = 0; i < t.len; i++) grid[t.row][t.col + i] = -1;
+    for (let c = t.col + t.len; c < GRID_COLS; c++) {
+      if (grid[t.row][c] !== -1) return false;
+    }
+    return true;
+  }
+  function bfsSolve(initialCars, maxStates = 200000) {
+    const start = initialCars.map(c => ({ ...c }));
+    const visited = new Set([encodeState(start)]);
+    const queue = [{ state: start, depth: 0 }];
+    let head = 0;
+    while (head < queue.length && visited.size < maxStates) {
+      const { state, depth } = queue[head++];
+      if (isSolved(state)) return depth;
+      // Generate moves
+      for (let i = 0; i < state.length; i++) {
+        for (const delta of [-1, +1]) {
+          // Compute occupancy
+          const grid = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
+          state.forEach((c, idx) => {
+            for (let k = 0; k < c.len; k++) {
+              const r = c.row + (c.dir === 'v' ? k : 0);
+              const cc = c.col + (c.dir === 'h' ? k : 0);
+              grid[r][cc] = idx;
+            }
+          });
+          const car = state[i];
+          for (let k = 0; k < car.len; k++) {
+            const r = car.row + (car.dir === 'v' ? k : 0);
+            const cc = car.col + (car.dir === 'h' ? k : 0);
+            grid[r][cc] = -1;
+          }
+          let steps = 0;
+          while (true) {
+            const next = steps + 1;
+            let cr, cc;
+            if (delta > 0) {
+              cr = car.row + (car.dir === 'v' ? car.len - 1 + next : 0);
+              cc = car.col + (car.dir === 'h' ? car.len - 1 + next : 0);
+            } else {
+              cr = car.row + (car.dir === 'v' ? -next : 0);
+              cc = car.col + (car.dir === 'h' ? -next : 0);
+            }
+            if (cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) break;
+            if (grid[cr][cc] !== -1) break;
+            steps = next;
+            // Push state (each step is its own state — count as one move per slide direction)
+          }
+          if (steps > 0) {
+            // Apply each possible step length as separate states (since "move" = any number of cells)
+            for (let s = 1; s <= steps; s++) {
+              const newState = state.map(c => ({ ...c }));
+              if (car.dir === 'h') newState[i].col += delta * s;
+              else newState[i].row += delta * s;
+              const key = encodeState(newState);
+              if (!visited.has(key)) {
+                visited.add(key);
+                queue.push({ state: newState, depth: depth + 1 });
+              }
+            }
+          }
+        }
+      }
+    }
+    return -1;
+  }
+  function verifyLevels() {
+    const results = [];
+    LEVELS.forEach((lvl, i) => {
+      const d = bfsSolve(lvl.cars);
+      results.push({ level: lvl.name, diff: lvl.diff, minMoves: d });
+      if (d < 0) console.warn(`[Parking Lot Escape] Level ${lvl.name} (${lvl.diff}) — UNSOLVABLE`);
+    });
+    console.table(results);
+  }
+
+  // ------------ Boot ------------
+  loadLevel(0);
+  // Run BFS verification on next tick so initial render isn't blocked
+  setTimeout(verifyLevels, 50);
+
+})();
+</script>
+</body>
+</html>
