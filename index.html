@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Parking Lot Escape</title>
 <style>
-  /* ============ Layout & theme ============ */
   :root {
     --bg-1: #0f172a;
     --bg-2: #1e293b;
@@ -20,162 +19,131 @@
     --board: #0b1220;
     --target: #ef4444;
     --target-2: #f87171;
-    --car-h-a: #38bdf8;
-    --car-h-b: #818cf8;
-    --car-h-c: #a78bfa;
-    --car-h-d: #2dd4bf;
-    --car-v-a: #facc15;
-    --car-v-b: #fb923c;
-    --car-v-c: #84cc16;
-    --car-v-d: #f472b6;
+    --wall: #475569;
+    --tile-glow: rgba(251, 146, 60, 0.55);
     --shadow: 0 6px 14px rgba(0,0,0,.35);
   }
+  /* Theme: garage (default), city, industrial, neon, midnight */
+  body[data-theme="city"] {
+    --board: #0a1929; --bg-1: #0f1d2e; --accent: #38bdf8; --accent-2: #67e8f9;
+  }
+  body[data-theme="industrial"] {
+    --board: #1a1410; --bg-1: #1f1a14; --accent: #f59e0b; --accent-2: #fde68a;
+  }
+  body[data-theme="neon"] {
+    --board: #14081f; --bg-1: #1a0a2e; --accent: #d946ef; --accent-2: #f0abfc;
+  }
+  body[data-theme="midnight"] {
+    --board: #050816; --bg-1: #0a0f23; --accent: #818cf8; --accent-2: #a5b4fc;
+  }
+
   * { box-sizing: border-box; }
   html, body {
-    margin: 0;
-    padding: 0;
-    background: radial-gradient(circle at 30% 0%, #1e293b 0%, #0b1220 60%, #060912 100%);
+    margin: 0; padding: 0;
+    background: radial-gradient(circle at 30% 0%, var(--bg-1) 0%, #0b1220 60%, #060912 100%);
     color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
+    min-height: 100vh; overflow-x: hidden;
+    transition: background 0.6s ease;
   }
-  #app {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 20px 16px 40px;
-  }
-  header {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 18px;
-  }
+  #app { max-width: 720px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
   header h1 {
-    margin: 0;
-    font-size: 28px;
-    letter-spacing: 0.5px;
+    margin: 0; font-size: 28px; letter-spacing: 0.5px;
     background: linear-gradient(90deg, var(--accent-2), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
   .controls button, .modal button {
-    background: var(--panel);
-    color: var(--ink);
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background .15s, transform .1s, border-color .15s;
+    background: var(--panel); color: var(--ink); border: 1px solid #334155;
+    border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: background .15s, transform .1s, border-color .15s;
   }
   .controls button:hover:not(:disabled), .modal button:hover:not(:disabled) {
-    background: #1f2937;
-    border-color: var(--accent);
+    background: #1f2937; border-color: var(--accent);
   }
   .controls button:active:not(:disabled) { transform: scale(0.97); }
-  .controls button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
+  .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
   .controls button.primary {
     background: linear-gradient(180deg, var(--accent), #d35400);
-    border-color: transparent;
-    color: #1a0a02;
+    border-color: transparent; color: #1a0a02;
   }
   .stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 18px;
-    font-size: 14px;
-    color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 18px;
+    font-size: 14px; color: var(--muted);
   }
   .stats b { color: var(--ink); font-weight: 600; }
+  .stats .star-row { display: inline-flex; gap: 2px; }
 
-  /* ============ Board ============ */
-  main {
-    display: flex;
-    justify-content: center;
-  }
+  main { display: flex; justify-content: center; }
   #board-wrap {
-    position: relative;
-    width: 100%;
-    max-width: 600px;
-    aspect-ratio: 1 / 1;
+    position: relative; width: 100%; max-width: 600px; aspect-ratio: 1 / 1;
   }
   #board {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background: var(--board);
-    border: 3px solid #334155;
-    border-radius: 14px;
+    position: relative; width: 100%; height: 100%;
+    background: var(--board); border: 3px solid #334155; border-radius: 14px;
     box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 30px rgba(0,0,0,.6);
-    overflow: visible;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
+    overflow: visible; user-select: none; -webkit-user-select: none; touch-action: none;
   }
-  /* Grid cells drawn as background pattern via SVG */
   .grid-bg {
-    position: absolute;
-    inset: 6px;
+    position: absolute; inset: 6px;
     background-image:
       linear-gradient(to right, #243046 1px, transparent 1px),
       linear-gradient(to bottom, #243046 1px, transparent 1px);
-    background-size: calc((100% ) / var(--cols)) calc((100% ) / var(--rows));
-    border-radius: 8px;
-    pointer-events: none;
+    background-size: calc(100% / var(--cols)) calc(100% / var(--rows));
+    border-radius: 8px; pointer-events: none;
   }
-  /* Exit marker on right edge */
   .exit {
-    position: absolute;
-    right: -3px;
-    width: 14px;
+    position: absolute; right: -3px; width: 14px;
     background: linear-gradient(180deg, var(--accent-2), var(--accent));
     border-radius: 0 6px 6px 0;
     box-shadow: 0 0 16px rgba(251, 146, 60, 0.7);
     pointer-events: none;
   }
   .exit::before {
-    content: 'EXIT';
-    position: absolute;
-    top: 50%;
-    left: 22px;
-    transform: translateY(-50%);
-    color: var(--accent-2);
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 2px;
+    content: 'EXIT'; position: absolute; top: 50%; left: 22px;
+    transform: translateY(-50%); color: var(--accent-2);
+    font-weight: 700; font-size: 12px; letter-spacing: 2px;
     text-shadow: 0 0 8px rgba(251, 146, 60, 0.6);
   }
 
-  /* ============ Cars ============ */
+  /* ============ Tiles (board features) ============ */
+  .tile {
+    position: absolute; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 24px;
+    text-shadow: 0 0 8px var(--tile-glow);
+  }
+  .tile.oneway {
+    color: var(--accent-2);
+    background: radial-gradient(circle, rgba(251,146,60,0.18) 0%, transparent 70%);
+  }
+  .tile.teleport {
+    color: var(--accent);
+    background: radial-gradient(circle, rgba(168,85,247,0.25) 0%, transparent 70%);
+    border: 1px dashed rgba(168, 85, 247, 0.5);
+    border-radius: 50%;
+  }
+  .tile.teleport::before {
+    content: attr(data-pair); position: absolute;
+    font-size: 11px; color: var(--accent-2); font-weight: 700;
+    bottom: 2px; right: 4px; opacity: 0.8;
+  }
+  .tile.wall {
+    background: repeating-linear-gradient(45deg, #334155, #334155 4px, #1e293b 4px, #1e293b 8px);
+    border: 1px solid #475569; border-radius: 4px;
+  }
+
+  /* ============ Blocks (vehicles) ============ */
   .car {
-    position: absolute;
-    border-radius: 10px;
-    cursor: grab;
+    position: absolute; border-radius: 10px; cursor: grab;
     box-shadow: var(--shadow), inset 0 -6px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.18);
-    transition: transform 0.18s cubic-bezier(.2,.9,.3,1.2), box-shadow 0.15s;
-    will-change: transform;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    color: rgba(255,255,255,.85);
-    font-size: 14px;
-    letter-spacing: 1px;
+    transition: transform 0.18s cubic-bezier(.2,.9,.3,1.2), box-shadow 0.15s, left 0.18s, top 0.18s, width 0.18s, height 0.18s;
+    will-change: transform; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: rgba(255,255,255,.85); font-size: 14px; letter-spacing: 1px;
   }
   .car.dragging {
-    transition: none;
-    cursor: grabbing;
+    transition: none; cursor: grabbing;
     box-shadow: 0 12px 24px rgba(0,0,0,.55), inset 0 -6px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.22);
     z-index: 5;
   }
@@ -184,17 +152,10 @@
     color: #2a0606;
   }
   .car.target::after {
-    content: '★';
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: rgba(0,0,0,.45);
-    pointer-events: none;
+    content: '★'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: rgba(0,0,0,.45); pointer-events: none;
   }
-  /* Other car palettes assigned via JS class */
   .car.c1 { background: linear-gradient(180deg, #7dd3fc, #38bdf8); }
   .car.c2 { background: linear-gradient(180deg, #a5b4fc, #6366f1); }
   .car.c3 { background: linear-gradient(180deg, #c4b5fd, #8b5cf6); }
@@ -204,129 +165,198 @@
   .car.c7 { background: linear-gradient(180deg, #bef264, #65a30d); }
   .car.c8 { background: linear-gradient(180deg, #f9a8d4, #db2777); }
 
-  /* ============ Win overlay ============ */
+  /* Direction-locked: subtle axis indicator on the car */
+  .car .lock-arrow {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: rgba(255,255,255,0.45); pointer-events: none;
+  }
+
+  /* Swivel block: pivot dot at the anchor end */
+  .car.swivel { cursor: grab; }
+  .car.swivel .pivot {
+    position: absolute; width: 14px; height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 30%, var(--accent) 70%);
+    box-shadow: 0 0 8px var(--accent), inset 0 0 4px rgba(0,0,0,0.5);
+    pointer-events: none; z-index: 2;
+  }
+  .car.swivel .arc-hint {
+    position: absolute; inset: -6px;
+    border: 2px dashed rgba(251, 146, 60, 0.0);
+    border-radius: 12px; pointer-events: none;
+    transition: border-color 0.3s;
+  }
+  .car.swivel.first-time .arc-hint { border-color: rgba(251, 146, 60, 0.65); animation: spin 3s linear infinite; }
+
+  /* Heavy block: chunky border, weight icon */
+  .car.heavy {
+    border: 3px solid rgba(0,0,0,0.4);
+    box-shadow: var(--shadow), inset 0 -8px 0 rgba(0,0,0,.3), inset 0 2px 0 rgba(255,255,255,.1);
+  }
+  .car.heavy::before {
+    content: '⬛'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: rgba(0,0,0,0.5); pointer-events: none;
+  }
+
+  /* Breakable block: cracked texture */
+  .car.breakable {
+    background-image:
+      linear-gradient(135deg, rgba(255,255,255,0.0) 30%, rgba(0,0,0,0.2) 50%, rgba(255,255,255,0.0) 70%),
+      var(--bg-img, linear-gradient(180deg, #94a3b8, #64748b));
+    border: 1px dashed rgba(0,0,0,0.4);
+    background-blend-mode: overlay;
+  }
+  .car.breakable.shatter {
+    animation: shatter 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes shatter {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15) rotate(4deg); opacity: 0.8; filter: brightness(1.5); }
+    100% { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  }
+
+  /* Key block + Lock block */
+  .car.key {
+    box-shadow: var(--shadow), inset 0 -6px 0 rgba(0,0,0,.18), inset 0 2px 0 rgba(255,255,255,.22),
+                0 0 14px var(--key-color, #fbbf24);
+  }
+  .car.key::after {
+    content: '🔑'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: rgba(0,0,0,.5); pointer-events: none;
+  }
+  .car.lock {
+    background: linear-gradient(180deg, #4b5563, #1f2937) !important;
+    border: 2px solid var(--key-color, #fbbf24);
+    cursor: not-allowed;
+  }
+  .car.lock::after {
+    content: '🔒'; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--key-color, #fbbf24); pointer-events: none;
+  }
+  .car.lock.unlocked {
+    border-color: var(--good); cursor: grab;
+    background: linear-gradient(180deg, #6b7280, #374151) !important;
+  }
+  .car.lock.unlocked::after { content: '🔓'; color: var(--good); }
+
+  /* First-encounter pulse: applied once per session per mechanic */
+  .car.first-time {
+    animation: firstpulse 2s ease-in-out 2;
+  }
+  @keyframes firstpulse {
+    0%, 100% { box-shadow: var(--shadow); }
+    50% { box-shadow: 0 0 24px var(--accent), 0 0 36px var(--accent-2); }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Hint banner: subtle one-time hint at top of board */
+  #hint-banner {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--accent-2);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 8;
+    white-space: nowrap;
+  }
+  #hint-banner.show { opacity: 1; }
+
+  /* Win overlay */
   #win-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
     background: rgba(11, 18, 32, .82);
-    border-radius: 14px;
-    z-index: 10;
-    backdrop-filter: blur(4px);
-    animation: fadein .25s ease;
+    border-radius: 14px; z-index: 10;
+    backdrop-filter: blur(4px); animation: fadein .25s ease;
   }
   #win-overlay.hidden { display: none; }
   .win-card {
     background: linear-gradient(180deg, #1e293b, #0f172a);
     border: 1px solid var(--accent);
-    border-radius: 14px;
-    padding: 28px 32px;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,.55);
-    max-width: 320px;
+    border-radius: 14px; padding: 28px 32px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55); max-width: 320px;
   }
   .win-card h2 {
     margin: 0 0 8px;
     background: linear-gradient(90deg, var(--good), var(--accent-2));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
     font-size: 32px;
   }
   .win-card p { margin: 0 0 18px; color: var(--muted); }
+  .win-card .stars { font-size: 28px; margin: 8px 0 14px; letter-spacing: 6px; }
+  .win-card .stars span { color: #475569; transition: color 0.3s; }
+  .win-card .stars span.lit { color: var(--accent-2); text-shadow: 0 0 12px var(--accent); }
+  .win-card .row { display: flex; gap: 8px; justify-content: center; }
   .win-card button {
     background: linear-gradient(180deg, var(--accent-2), var(--accent));
-    border: none;
-    color: #1a0a02;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 700;
-    cursor: pointer;
-    font-size: 14px;
+    border: none; color: #1a0a02;
+    padding: 10px 18px; border-radius: 8px;
+    font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  .win-card button.secondary {
+    background: var(--panel); color: var(--ink); border: 1px solid #334155;
   }
 
-  /* ============ Level modal ============ */
-  #level-modal {
-    position: fixed;
-    inset: 0;
+  /* Level modal */
+  #level-modal, #replay-modal {
+    position: fixed; inset: 0;
     background: rgba(0,0,0,.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; backdrop-filter: blur(4px);
   }
-  #level-modal.hidden { display: none; }
+  #level-modal.hidden, #replay-modal.hidden { display: none; }
   .modal {
     background: linear-gradient(180deg, #1e293b, #0f172a);
-    padding: 24px;
-    border-radius: 14px;
+    padding: 24px; border-radius: 14px;
     border: 1px solid #334155;
-    width: min(92vw, 520px);
-    max-height: 80vh;
-    overflow-y: auto;
+    width: min(92vw, 560px); max-height: 80vh; overflow-y: auto;
   }
   .modal h2 { margin-top: 0; }
+  .pack-section { margin-bottom: 16px; }
+  .pack-section h3 {
+    font-size: 14px; color: var(--accent-2); margin: 12px 0 6px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
   #level-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-    margin-bottom: 20px;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
   }
   .level-btn {
-    aspect-ratio: 1 / 1;
-    background: var(--panel);
-    border: 1px solid #334155;
-    border-radius: 8px;
-    color: var(--ink);
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    font-size: 16px;
+    aspect-ratio: 1 / 1; background: var(--panel);
+    border: 1px solid #334155; border-radius: 8px;
+    color: var(--ink); font-weight: 600; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; font-size: 14px; padding: 2px;
     transition: background .15s, transform .1s;
   }
-  .level-btn:hover:not(:disabled) {
-    background: #1f2937;
-    transform: scale(1.04);
-  }
-  .level-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-  .level-btn.solved {
-    border-color: var(--good);
-    box-shadow: 0 0 0 1px var(--good);
-  }
-  .level-btn.current {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent);
-  }
-  .level-btn .best {
-    font-size: 10px;
-    font-weight: 400;
-    color: var(--muted);
-  }
-  .difficulty-tag {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-    margin: 4px 0 8px;
-  }
+  .level-btn:hover:not(:disabled) { background: #1f2937; transform: scale(1.04); }
+  .level-btn:disabled { opacity: 0.32; cursor: not-allowed; }
+  .level-btn.solved { border-color: var(--good); }
+  .level-btn.perfect { border-color: var(--accent-2); box-shadow: 0 0 0 1px var(--accent-2); }
+  .level-btn.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .level-btn .best { font-size: 10px; font-weight: 400; color: var(--muted); }
+  .level-btn .stars-mini { font-size: 9px; letter-spacing: 1px; color: var(--accent-2); height: 10px; }
+
+  .difficulty-tag { font-size: 12px; font-weight: 500; color: var(--muted); margin: 4px 0 8px; }
   .difficulty-tag.easy { color: #4ade80; }
   .difficulty-tag.medium { color: #facc15; }
   .difficulty-tag.hard { color: #fb923c; }
   .difficulty-tag.expert { color: #ef4444; }
+  .difficulty-tag.master { color: #d946ef; }
 
-  @keyframes fadein {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
   @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.6); }
     70% { box-shadow: 0 0 0 12px rgba(251, 146, 60, 0); }
@@ -338,36 +368,45 @@
     header h1 { font-size: 22px; }
     .stats { font-size: 13px; gap: 12px; }
     .controls button { padding: 7px 10px; font-size: 13px; }
+    #level-grid { grid-template-columns: repeat(4, 1fr); }
   }
 </style>
 </head>
-<body>
+<body data-theme="garage">
 <div id="app">
   <header>
     <h1>Parking Lot Escape</h1>
     <div class="controls">
       <button id="btn-reset">Reset</button>
       <button id="btn-undo">Undo</button>
-      <button id="btn-prev">&#9664; Prev</button>
-      <button id="btn-next" disabled>Next &#9654;</button>
+      <button id="btn-prev">◀ Prev</button>
+      <button id="btn-next" disabled>Next ▶</button>
       <button id="btn-levels">Levels</button>
+      <button id="btn-replay" title="Watch optimal solution">Watch</button>
+      <button id="btn-daily" title="Daily challenge">Daily</button>
     </div>
     <div class="stats">
       <span>Level <b id="level-num">1</b></span>
       <span id="diff-badge"></span>
       <span>Moves: <b id="moves">0</b></span>
-      <span>Best: <b id="best">&mdash;</b></span>
+      <span>Best: <b id="best">—</b></span>
+      <span>Optimal: <b id="optimal">—</b></span>
       <span>Time: <b id="time">0:00</b></span>
     </div>
   </header>
   <main>
     <div id="board-wrap">
       <div id="board"></div>
+      <div id="hint-banner"></div>
       <div id="win-overlay" class="hidden">
         <div class="win-card">
           <h2>Solved!</h2>
+          <div class="stars"><span id="s1">★</span><span id="s2">★</span><span id="s3">★</span></div>
           <p id="win-stats"></p>
-          <button id="btn-next-from-win">Next Level &#9654;</button>
+          <div class="row">
+            <button id="btn-watch-from-win" class="secondary">Watch optimal</button>
+            <button id="btn-next-from-win">Next ▶</button>
+          </div>
         </div>
       </div>
     </div>
@@ -377,195 +416,59 @@
 <div id="level-modal" class="hidden">
   <div class="modal">
     <h2>Select Level</h2>
-    <div id="level-grid"></div>
+    <div id="level-packs"></div>
     <button id="btn-close-levels">Close</button>
+  </div>
+</div>
+
+<div id="replay-modal" class="hidden">
+  <div class="modal" style="max-width: 360px; text-align: center;">
+    <h2>Watching optimal solution</h2>
+    <p style="color: var(--muted)">Move <b id="replay-step">0</b> / <b id="replay-total">0</b></p>
+    <div class="row" style="display:flex; gap:8px; justify-content:center;">
+      <button id="btn-replay-stop">Stop</button>
+    </div>
   </div>
 </div>
 
 <script>
 /* =========================================================================
-   PARKING LOT ESCAPE
-   - 6x6 grid (configurable), Rush-Hour style sliding-block puzzle
-   - Vehicles slide along their orientation axis only
-   - Target (red) car must exit through the right edge of row 2 (0-indexed)
-   - Mouse drag + keyboard (arrow keys after clicking a car) controls
-   - Move counter, undo, reset, level select, best-moves tracking
+   PARKING LOT ESCAPE — v2
+   - 6x6 grid, generalized block model (sliders + swivels)
+   - Mechanics: direction-lock, swivel, heavy, breakable, key/lock,
+     one-way tiles, gravity, teleport
+   - 100 hand-crafted levels across 5 themed packs
+   - Bonuses: perfect-move ★, watch-solution replay, daily challenge
    ========================================================================= */
-
 (() => {
   'use strict';
 
-  // ------------ Constants ------------
+  // ============ Constants ============
   const GRID_ROWS = 6;
   const GRID_COLS = 6;
-  const EXIT_ROW = 2; // target exits through this row
-  const STORAGE_KEY = 'parking_lot_escape_v1';
+  const EXIT_ROW = 2;
+  const STORAGE_KEY = 'parking_lot_escape_v2';
+  const MAX_BFS_STATES = 400000;
 
-  // ------------ Levels ------------
-  // Each car: { dir: 'h'|'v', len: 2|3, row, col, target?: bool }
-  // Target is always horizontal length 2 on EXIT_ROW.
-  const LEVELS = [
-    // ===== Easy 1-5 =====
-    { name: 1, diff: 'easy', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 1, col: 4 },
-    ]},
-    { name: 2, diff: 'easy', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 1, col: 3 },
-      { dir: 'v', len: 2, row: 1, col: 5 },
-    ]},
-    { name: 3, diff: 'easy', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 3, row: 0, col: 3 },
-      { dir: 'v', len: 2, row: 1, col: 5 },
-    ]},
-    { name: 4, diff: 'easy', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 3, row: 0, col: 3 },
-      { dir: 'v', len: 2, row: 1, col: 4 },
-      { dir: 'h', len: 2, row: 5, col: 0 },
-    ]},
-    { name: 5, diff: 'easy', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 0, col: 3 },
-      { dir: 'v', len: 2, row: 1, col: 5 },
-      { dir: 'h', len: 3, row: 3, col: 1 },
-      { dir: 'v', len: 2, row: 4, col: 4 },
-    ]},
-
-    // ===== Medium 6-10 =====
-    { name: 6, diff: 'medium', cars: [
-      { dir: 'h', len: 2, row: 2, col: 1, target: true },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 0, col: 0 },
-      { dir: 'v', len: 2, row: 0, col: 3 },
-      { dir: 'h', len: 3, row: 5, col: 0 },
-      { dir: 'v', len: 2, row: 3, col: 3 },
-    ]},
-    { name: 7, diff: 'medium', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 3, row: 0, col: 3 },
-      { dir: 'h', len: 2, row: 3, col: 0 },
-      { dir: 'v', len: 2, row: 4, col: 2 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 5, col: 4 },
-    ]},
-    { name: 8, diff: 'medium', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 0, col: 2 },
-      { dir: 'v', len: 3, row: 0, col: 3 },
-      { dir: 'h', len: 2, row: 3, col: 0 },
-      { dir: 'v', len: 2, row: 0, col: 5 },
-      { dir: 'v', len: 3, row: 3, col: 5 },
-      { dir: 'h', len: 2, row: 5, col: 0 },
-    ]},
-    { name: 9, diff: 'medium', cars: [
-      { dir: 'h', len: 2, row: 2, col: 1, target: true },
-      { dir: 'v', len: 2, row: 0, col: 0 },
-      { dir: 'h', len: 2, row: 0, col: 1 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'v', len: 2, row: 4, col: 0 },
-      { dir: 'h', len: 3, row: 5, col: 1 },
-      { dir: 'v', len: 2, row: 3, col: 4 },
-      { dir: 'h', len: 2, row: 3, col: 2 },
-    ]},
-    { name: 10, diff: 'medium', cars: [
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 1, col: 2 },
-      { dir: 'v', len: 3, row: 0, col: 3 },
-      { dir: 'h', len: 2, row: 0, col: 4 },
-      { dir: 'v', len: 2, row: 3, col: 1 },
-      { dir: 'h', len: 2, row: 3, col: 2 },
-      { dir: 'v', len: 2, row: 4, col: 4 },
-      { dir: 'h', len: 2, row: 5, col: 0 },
-    ]},
-    // ===== Hard 11-15 =====
-    { name: 11, diff: 'hard', cars: [
-      { dir: 'h', len: 2, row: 2, col: 1, target: true },
-      { dir: 'v', len: 3, row: 0, col: 0 },
-      { dir: 'h', len: 2, row: 0, col: 1 },
-      { dir: 'v', len: 2, row: 0, col: 3 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 3, col: 0 },
-      { dir: 'v', len: 2, row: 3, col: 4 },
-      { dir: 'h', len: 3, row: 4, col: 1 },
-      { dir: 'h', len: 3, row: 5, col: 2 },
-    ]},
-    { name: 12, diff: 'hard', cars: [
-      { dir: 'v', len: 2, row: 0, col: 0 },
-      { dir: 'v', len: 3, row: 0, col: 2 },
-      { dir: 'v', len: 2, row: 0, col: 4 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'h', len: 2, row: 4, col: 1 },
-      { dir: 'h', len: 2, row: 4, col: 4 },
-      { dir: 'h', len: 2, row: 5, col: 0 },
-      { dir: 'h', len: 2, row: 5, col: 4 },
-    ]},
-    { name: 13, diff: 'hard', cars: [
-      { dir: 'v', len: 2, row: 0, col: 0 },
-      { dir: 'h', len: 2, row: 0, col: 1 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 3, row: 2, col: 2 },
-      { dir: 'v', len: 2, row: 2, col: 4 },
-      { dir: 'v', len: 2, row: 4, col: 3 },
-      { dir: 'h', len: 3, row: 5, col: 0 },
-    ]},
-    { name: 14, diff: 'hard', cars: [
-      { dir: 'v', len: 2, row: 0, col: 0 },
-      { dir: 'v', len: 3, row: 0, col: 2 },
-      { dir: 'v', len: 2, row: 0, col: 3 },
-      { dir: 'v', len: 2, row: 0, col: 4 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 3, col: 3 },
-      { dir: 'h', len: 2, row: 3, col: 4 },
-      { dir: 'h', len: 2, row: 4, col: 0 },
-      { dir: 'h', len: 3, row: 5, col: 1 },
-    ]},
-    { name: 15, diff: 'hard', cars: [
-      { dir: 'v', len: 2, row: 0, col: 1 },
-      { dir: 'v', len: 3, row: 0, col: 2 },
-      { dir: 'v', len: 2, row: 0, col: 3 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 2, row: 3, col: 1 },
-      { dir: 'v', len: 2, row: 4, col: 4 },
-      { dir: 'h', len: 3, row: 5, col: 0 },
-    ]},
-
-    // ===== Expert 16-17 =====
-    { name: 16, diff: 'expert', cars: [
-      { dir: 'v', len: 2, row: 0, col: 0 },
-      { dir: 'h', len: 2, row: 0, col: 1 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'v', len: 2, row: 1, col: 3 },
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 3, row: 2, col: 2 },
-      { dir: 'h', len: 2, row: 4, col: 4 },
-      { dir: 'h', len: 3, row: 5, col: 0 },
-    ]},
-    { name: 17, diff: 'expert', cars: [
-      { dir: 'v', len: 2, row: 0, col: 0 },
-      { dir: 'h', len: 2, row: 0, col: 1 },
-      { dir: 'v', len: 3, row: 0, col: 5 },
-      { dir: 'h', len: 2, row: 2, col: 0, target: true },
-      { dir: 'v', len: 3, row: 2, col: 2 },
-      { dir: 'v', len: 2, row: 2, col: 3 },
-      { dir: 'h', len: 2, row: 4, col: 4 },
-      { dir: 'h', len: 3, row: 5, col: 0 },
-    ]},
+  // Theme packs (group level ranges to a CSS theme)
+  const PACKS = [
+    { id: 'garage',     name: 'Downtown Garage', range: [1, 20] },
+    { id: 'city',       name: 'City Streets',    range: [21, 40] },
+    { id: 'industrial', name: 'Industrial Yard', range: [41, 60] },
+    { id: 'neon',       name: 'Neon District',   range: [61, 80] },
+    { id: 'midnight',   name: 'Midnight Lot',    range: [81, 100] },
   ];
+  function packForLevel(num) {
+    return PACKS.find(p => num >= p.range[0] && num <= p.range[1]) || PACKS[0];
+  }
 
-  // ------------ Persistent state (best moves per level) ------------
+  // ============ Storage ============
   function loadProgress() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : { best: {}, solved: {} };
+      return raw ? JSON.parse(raw) : { best: {}, solved: {}, perfect: {}, hintShown: {}, dailyDone: {} };
     } catch (e) {
-      return { best: {}, solved: {} };
+      return { best: {}, solved: {}, perfect: {}, hintShown: {}, dailyDone: {} };
     }
   }
   function saveProgress() {
@@ -573,21 +476,97 @@
   }
   const progress = loadProgress();
 
-  // ------------ Game state ------------
+  // ============ Levels ============
+  // Block formats supported:
+  //  Slider:     { dir, len, row, col, target?, heavy?, breakable?, keyId?, lockId? }
+  //  Swivel:     { kind:'swivel', dir, len, row, col, extent? }
+  //
+  // Tiles (level.tiles):
+  //  { row, col, type:'oneway', arrowDir:'left'|'right'|'up'|'down' }
+  //  { row, col, type:'teleport', pairId:'A' }   // exactly two tiles share a pairId
+  //  { row, col, type:'wall' }
+  //
+  // Level fields:
+  //  { name, diff, blocks, tiles?, gravity? ('down'|null), hint }
+  //   - 'cars' is accepted as an alias for 'blocks' (legacy)
+  //   - 'hint' is a designer note; it is NOT shown to the player
+  const LEVELS = [];  // populated below
+
+  // ============ Block model ============
+  function normalizeBlock(b, idx) {
+    return {
+      id: b.id ?? `b${idx}`,
+      kind: b.kind ?? 'slider',
+      dir: b.dir,
+      len: b.len,
+      row: b.row,
+      col: b.col,
+      extent: b.extent ?? 1,
+      target: !!b.target,
+      heavy: b.heavy ?? 0,
+      breakable: !!b.breakable,
+      keyId: b.keyId ?? null,
+      lockId: b.lockId ?? null,
+      destroyed: false,
+      unlocked: false,
+    };
+  }
+  function normalizeTile(t) {
+    return { row: t.row, col: t.col, type: t.type, arrowDir: t.arrowDir, pairId: t.pairId };
+  }
+  // Cells occupied by a block (in board coords).
+  function cellsOf(b) {
+    if (b.destroyed) return [];
+    const ext = b.extent || 1;
+    const dr = b.dir === 'v' ? ext : 0;
+    const dc = b.dir === 'h' ? ext : 0;
+    const cells = [];
+    for (let i = 0; i < b.len; i++) cells.push({ r: b.row + i * dr, c: b.col + i * dc });
+    return cells;
+  }
+  // Pivot cell of a swivel (the anchor end — first cell in the cells array).
+  function pivotOf(b) { return { r: b.row, c: b.col }; }
+  // Build occupancy: 2D grid of block index per cell, -1 if empty.
+  function buildOccupancy(blockList, walls) {
+    const g = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
+    if (walls) walls.forEach(w => { if (in_bounds(w.r, w.c)) g[w.r][w.c] = -2; });
+    blockList.forEach((b, idx) => {
+      cellsOf(b).forEach(({ r, c }) => {
+        if (in_bounds(r, c)) g[r][c] = idx;
+      });
+    });
+    return g;
+  }
+  function in_bounds(r, c) { return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS; }
+
+  // ============ Game state ============
   let levelIdx = 0;
-  let cars = [];        // active vehicles (deep-cloned from level)
-  let history = [];     // move history for undo
+  let blocks = [];
+  let tiles = [];
+  let walls = [];           // filtered list of wall tiles for occupancy
+  let onewayMap = {};       // "r,c" -> arrowDir
+  let teleportMap = {};     // "r,c" -> partner {r,c}
+  let gravity = null;       // 'down' | null
+  let history = [];
   let moves = 0;
   let won = false;
   let timerStart = 0;
   let timerInterval = null;
+  let solveData = null;     // { minMoves, path }
+  let dragState = null;
+  let selectedBlockIdx = null;
+  let replayActive = false;
+  let dailyMode = false;
 
-  // ------------ DOM ------------
+  // ============ DOM refs ============
   const boardEl = document.getElementById('board');
+  const hintBanner = document.getElementById('hint-banner');
   const winOverlay = document.getElementById('win-overlay');
   const winStats = document.getElementById('win-stats');
+  const star1 = document.getElementById('s1'), star2 = document.getElementById('s2'), star3 = document.getElementById('s3');
   const movesEl = document.getElementById('moves');
   const bestEl = document.getElementById('best');
+  const optimalEl = document.getElementById('optimal');
   const timeEl = document.getElementById('time');
   const levelNumEl = document.getElementById('level-num');
   const diffBadge = document.getElementById('diff-badge');
@@ -596,109 +575,294 @@
   const btnReset = document.getElementById('btn-reset');
   const btnUndo = document.getElementById('btn-undo');
   const btnLevels = document.getElementById('btn-levels');
+  const btnReplay = document.getElementById('btn-replay');
+  const btnDaily = document.getElementById('btn-daily');
   const btnNextFromWin = document.getElementById('btn-next-from-win');
+  const btnWatchFromWin = document.getElementById('btn-watch-from-win');
   const btnCloseLevels = document.getElementById('btn-close-levels');
   const levelModal = document.getElementById('level-modal');
-  const levelGrid = document.getElementById('level-grid');
+  const levelPacks = document.getElementById('level-packs');
+  const replayModal = document.getElementById('replay-modal');
+  const replayStepEl = document.getElementById('replay-step');
+  const replayTotalEl = document.getElementById('replay-total');
+  const btnReplayStop = document.getElementById('btn-replay-stop');
 
-  // ------------ Helpers ------------
+  // ============ Geometry helpers ============
   function cellSize() {
-    // Inner area is `inset: 6px`, so subtract 12 from each dimension.
     const rect = boardEl.getBoundingClientRect();
     return (rect.width - 12) / GRID_COLS;
   }
   function cellInset() { return 6; }
 
-  function buildOccupancyGrid(carList) {
-    const g = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
-    carList.forEach((c, idx) => {
-      for (let i = 0; i < c.len; i++) {
-        const r = c.row + (c.dir === 'v' ? i : 0);
-        const cc = c.col + (c.dir === 'h' ? i : 0);
-        if (r >= 0 && r < GRID_ROWS && cc >= 0 && cc < GRID_COLS) g[r][cc] = idx;
-      }
-    });
-    return g;
-  }
+  // ============ Move generation: SLIDE ============
+  // Returns max steps a slider/swivel-as-slider can move along its axis in `delta` direction.
+  // Considers: walls, other blocks, lock state, one-way tiles, off-grid (target exit).
+  // Note: swivels do NOT slide — they only rotate. This always returns 0 for swivels.
+  function maxSlide(blockList, idx, delta) {
+    const b = blockList[idx];
+    if (!b || b.destroyed) return 0;
+    if (b.kind === 'swivel') return 0;
+    if (b.lockId && !b.unlocked) return 0;
+    const occ = buildOccupancy(blockList, walls);
+    cellsOf(b).forEach(({ r, c }) => occ[r][c] = -1);
 
-  // Returns the maximum number of cells `car` can move in `delta` direction (-1 or +1)
-  // along its axis without colliding with others or going off-grid.
-  // For the target, allows sliding off the right (positive) for a win.
-  function maxSlide(carIdx, delta) {
-    const car = cars[carIdx];
-    const grid = buildOccupancyGrid(cars);
-    // Clear this car's own cells from grid
-    for (let i = 0; i < car.len; i++) {
-      const r = car.row + (car.dir === 'v' ? i : 0);
-      const c = car.col + (car.dir === 'h' ? i : 0);
-      grid[r][c] = -1;
-    }
     let steps = 0;
     while (true) {
       const next = steps + 1;
-      // Compute position after `next` steps in `delta` direction
-      let nr = car.row, nc = car.col;
-      if (car.dir === 'h') nc += delta * next;
-      else nr += delta * next;
-
-      // Compute the cell that becomes newly occupied as we advance one more step
+      // The newly-entered (leading) cell when advancing one more step:
       let cr, cc;
       if (delta > 0) {
-        // Moving forward: leading edge cell
-        cr = car.row + (car.dir === 'v' ? car.len - 1 + next : 0);
-        cc = car.col + (car.dir === 'h' ? car.len - 1 + next : 0);
+        cr = b.row + (b.dir === 'v' ? b.len - 1 + next : 0);
+        cc = b.col + (b.dir === 'h' ? b.len - 1 + next : 0);
       } else {
-        // Moving backward: trailing edge cell
-        cr = car.row + (car.dir === 'v' ? -next : 0);
-        cc = car.col + (car.dir === 'h' ? 0 : 0);
-        if (car.dir === 'h') cc = car.col - next;
+        cr = b.row + (b.dir === 'v' ? -next : 0);
+        cc = b.col + (b.dir === 'h' ? -next : 0);
       }
-
-      // Off-grid check
-      const offGrid = cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS;
-      if (offGrid) {
-        // Special: target sliding off the right is allowed (but only one extra step beyond)
-        if (car.target && car.dir === 'h' && delta > 0 && cr === EXIT_ROW) {
-          // Allow exit slide: count extra steps until fully off
-          steps = next;
-          // Continue once more? no — once we step beyond the right edge with our leading
-          // cell, we treat the puzzle as solved. We just return enough to indicate exit.
-          // Returning a large number lets drag logic detect exit.
-          return steps + GRID_COLS; // generous so caller knows the exit is reachable
+      // Off-grid? only the target's right exit is allowed.
+      if (!in_bounds(cr, cc)) {
+        if (b.target && b.dir === 'h' && delta > 0 && cr === EXIT_ROW) {
+          return steps + GRID_COLS;
         }
         break;
       }
-      if (grid[cr][cc] !== -1) break;
+      // Blocked by wall or another block?
+      if (occ[cr][cc] !== -1) break;
+      // One-way tile constraint: incoming move direction must match arrow.
+      const key = `${cr},${cc}`;
+      if (onewayMap[key]) {
+        const moveDir = (b.dir === 'h' ? (delta > 0 ? 'right' : 'left') : (delta > 0 ? 'down' : 'up'));
+        if (onewayMap[key] !== moveDir) break;
+      }
       steps = next;
     }
     return steps;
   }
 
-  function applyMove(carIdx, delta, steps) {
-    if (steps === 0) return false;
-    const car = cars[carIdx];
-    history.push({ carIdx, delta: -delta, steps });
-    if (car.dir === 'h') car.col += delta * steps;
-    else car.row += delta * steps;
-    moves++;
+  // Compute the cells swept by a swivel rotation from (dir, extent) to (newDir, newExtent),
+  // assuming a 90° turn around pivot. Returns array of {r,c} cells (excluding pivot).
+  function sweptCells(b, newDir, newExtent) {
+    const { r: pr, c: pc } = pivotOf(b);
+    // Body cells in start orientation (excluding pivot)
+    const startBody = [];
+    {
+      const ext = b.extent || 1;
+      const dr = b.dir === 'v' ? ext : 0;
+      const dc = b.dir === 'h' ? ext : 0;
+      for (let i = 1; i < b.len; i++) startBody.push({ r: pr + i * dr, c: pc + i * dc });
+    }
+    // Body cells in end orientation (excluding pivot)
+    const endBody = [];
+    {
+      const dr = newDir === 'v' ? newExtent : 0;
+      const dc = newDir === 'h' ? newExtent : 0;
+      for (let i = 1; i < b.len; i++) endBody.push({ r: pr + i * dr, c: pc + i * dc });
+    }
+    // Bounding box of all cells (start + end + pivot)
+    const all = [{r: pr, c: pc}, ...startBody, ...endBody];
+    let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+    all.forEach(({r,c}) => {
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (c < minC) minC = c; if (c > maxC) maxC = c;
+    });
+    const startSet = new Set(startBody.map(p => `${p.r},${p.c}`));
+    const endSet = new Set(endBody.map(p => `${p.r},${p.c}`));
+    const swept = [];
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        if (r === pr && c === pc) continue;
+        if (startSet.has(`${r},${c}`) || endSet.has(`${r},${c}`)) continue;
+        swept.push({ r, c });
+      }
+    }
+    return { swept, endBody };
+  }
+
+  // 4 possible orientations for a swivel
+  const SWIVEL_ORIENTATIONS = [
+    { dir: 'h', extent: +1 },
+    { dir: 'h', extent: -1 },
+    { dir: 'v', extent: +1 },
+    { dir: 'v', extent: -1 },
+  ];
+  function adjacentRotations(b) {
+    // From any orientation, the two perpendicular orientations are 90°-adjacent.
+    const out = [];
+    SWIVEL_ORIENTATIONS.forEach(o => {
+      if (o.dir !== b.dir) out.push(o);
+    });
+    return out;
+  }
+  // Validate a swivel rotation against current occupancy.
+  function canRotate(blockList, idx, newDir, newExtent) {
+    const b = blockList[idx];
+    if (b.kind !== 'swivel') return false;
+    if (b.dir === newDir) return false; // not a 90° rotation
+    const occ = buildOccupancy(blockList, walls);
+    // Clear self
+    cellsOf(b).forEach(({ r, c }) => occ[r][c] = -1);
+    const { swept, endBody } = sweptCells(b, newDir, newExtent);
+    // All end cells in-bounds and free
+    for (const { r, c } of endBody) {
+      if (!in_bounds(r, c)) return false;
+      if (occ[r][c] !== -1) return false;
+      // Don't allow rotating into walls (already covered by occ === -2).
+    }
+    // All swept cells in-bounds and free (otherwise the arm passes through something).
+    for (const { r, c } of swept) {
+      if (!in_bounds(r, c)) return false;
+      if (occ[r][c] !== -1) return false;
+    }
     return true;
   }
 
+  // ============ Apply moves ============
+  // Snapshot-based undo: each user-initiated move stores the full pre-move state.
+  // This makes side effects (gravity / teleport / lock unlock) trivially reversible.
+  function snapshot() {
+    return { blocks: blocks.map(b => ({ ...b })), moves };
+  }
+  function applySlide(idx, delta, steps, opts = {}) {
+    const b = blocks[idx];
+    // Heavy blocks can only advance 1 cell per drag.
+    if (b.heavy && b.heavy > 1) steps = Math.min(steps, 1);
+    if (steps <= 0 && !opts.shatter) return false;
+    const snap = snapshot();
+    const cost = (b.heavy && b.heavy > 1) ? b.heavy : 1;
+    if (b.dir === 'h') b.col += delta * steps;
+    else b.row += delta * steps;
+    if (opts.shatter && b.breakable) b.destroyed = true;
+    moves += cost;
+    handleTeleport(idx);
+    applyGravity();
+    updateLocks();
+    history.push(snap);
+    return true;
+  }
+  function applyRotate(idx, newDir, newExtent) {
+    const b = blocks[idx];
+    const snap = snapshot();
+    b.dir = newDir;
+    b.extent = newExtent;
+    moves += 1;
+    handleTeleport(idx);
+    applyGravity();
+    updateLocks();
+    history.push(snap);
+    return true;
+  }
   function undoMove() {
     if (history.length === 0) return;
-    const m = history.pop();
-    const car = cars[m.carIdx];
-    if (car.dir === 'h') car.col += m.delta * m.steps;
-    else car.row += m.delta * m.steps;
-    moves = Math.max(0, moves - 1);
+    const snap = history.pop();
+    blocks = snap.blocks;
+    moves = snap.moves;
     won = false;
     winOverlay.classList.add('hidden');
-    btnNext.disabled = !progress.solved[levelIdx];
-    renderCars();
+    btnNext.disabled = !progress.solved[levelKey()];
+    renderBlocks();
     updateHud();
   }
 
-  // ------------ Rendering ------------
+  // ============ Mechanics: locks, gravity, teleport ============
+  function updateLocks() {
+    // A lock unlocks when its matching key (any cell) is adjacent to any cell of the lock.
+    const keysByID = {};
+    blocks.forEach((b, i) => {
+      if (b.keyId && !b.destroyed) (keysByID[b.keyId] ||= []).push(i);
+    });
+    blocks.forEach(b => {
+      if (b.lockId && !b.unlocked) {
+        const keys = keysByID[b.lockId] || [];
+        const lockCells = cellsOf(b);
+        let touch = false;
+        for (const ki of keys) {
+          const kc = cellsOf(blocks[ki]);
+          for (const a of lockCells) for (const c of kc) {
+            if (Math.abs(a.r - c.r) + Math.abs(a.c - c.c) === 1) { touch = true; break; }
+            if (touch) break;
+          }
+          if (touch) break;
+        }
+        if (touch) b.unlocked = true;
+      }
+    });
+  }
+
+  function applyGravity() {
+    if (!gravity) return;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const order = [...blocks.keys()].sort((a, b) => {
+        const ra = Math.max(...cellsOf(blocks[a]).map(p => p.r), -Infinity);
+        const rb = Math.max(...cellsOf(blocks[b]).map(p => p.r), -Infinity);
+        return gravity === 'down' ? rb - ra : ra - rb;
+      });
+      for (const i of order) {
+        const b = blocks[i];
+        if (b.destroyed) continue;
+        if (b.kind === 'swivel') continue;
+        if (b.lockId && !b.unlocked) continue;
+        if (b.keyId) continue;
+        const dr = gravity === 'down' ? +1 : -1;
+        const cells = cellsOf(b);
+        const occ = buildOccupancy(blocks, walls);
+        cells.forEach(({ r, c }) => occ[r][c] = -1);
+        let canFall = true;
+        for (const { r, c } of cells) {
+          const nr = r + dr;
+          if (!in_bounds(nr, c)) { canFall = false; break; }
+          if (occ[nr][c] !== -1) { canFall = false; break; }
+          const okey = `${nr},${c}`;
+          if (onewayMap[okey]) {
+            const need = dr > 0 ? 'down' : 'up';
+            if (onewayMap[okey] !== need) { canFall = false; break; }
+          }
+        }
+        if (canFall) { b.row += dr; changed = true; }
+      }
+    }
+  }
+
+  function handleTeleport(idx) {
+    const b = blocks[idx];
+    if (b.destroyed || b.kind === 'swivel') return;
+    const cells = cellsOf(b);
+    for (let i = 0; i < cells.length; i++) {
+      const { r, c } = cells[i];
+      const partner = teleportMap[`${r},${c}`];
+      if (!partner) continue;
+      const ext = b.extent || 1;
+      const dr = b.dir === 'v' ? ext : 0;
+      const dc = b.dir === 'h' ? ext : 0;
+      const newRow = partner.r - i * dr;
+      const newCol = partner.c - i * dc;
+      const occ = buildOccupancy(blocks, walls);
+      cellsOf(b).forEach(p => occ[p.r][p.c] = -1);
+      let ok = true;
+      for (let j = 0; j < b.len; j++) {
+        const nr = newRow + j * dr;
+        const nc = newCol + j * dc;
+        if (!in_bounds(nr, nc)) { ok = false; break; }
+        if (occ[nr][nc] !== -1) { ok = false; break; }
+      }
+      if (ok) { b.row = newRow; b.col = newCol; }
+      return;
+    }
+  }
+
+  // ============ Win check ============
+  function isSolved(blockList) {
+    const t = blockList.find(b => b.target && !b.destroyed);
+    if (!t) return false;
+    const occ = buildOccupancy(blockList, walls);
+    cellsOf(t).forEach(({ r, c }) => occ[r][c] = -1);
+    for (let c = t.col + t.len; c < GRID_COLS; c++) {
+      if (occ[t.row][c] !== -1) return false;
+    }
+    return true;
+  }
+
+  // ============ Rendering ============
   function buildBoard() {
     boardEl.style.setProperty('--cols', GRID_COLS);
     boardEl.style.setProperty('--rows', GRID_ROWS);
@@ -707,196 +871,344 @@
     grid.className = 'grid-bg';
     boardEl.appendChild(grid);
 
-    // Exit marker
+    // Tiles (under blocks)
+    const cs = cellSize(); const inset = cellInset();
+    tiles.forEach(t => {
+      const el = document.createElement('div');
+      el.className = `tile ${t.type}`;
+      if (t.type === 'oneway') el.textContent = ({left:'◀', right:'▶', up:'▲', down:'▼'})[t.arrowDir];
+      if (t.type === 'teleport') { el.dataset.pair = t.pairId || ''; el.textContent = '◉'; }
+      el.style.width = `${cs}px`; el.style.height = `${cs}px`;
+      el.style.left = `${inset + t.col * cs}px`;
+      el.style.top = `${inset + t.row * cs}px`;
+      boardEl.appendChild(el);
+    });
+
+    // Exit marker on the right edge of EXIT_ROW
     const exit = document.createElement('div');
     exit.className = 'exit';
-    const inset = cellInset();
-    const cs = cellSize();
     exit.style.top = `${inset + EXIT_ROW * cs}px`;
     exit.style.height = `${cs}px`;
     boardEl.appendChild(exit);
   }
 
-  function renderCars() {
-    // Remove existing car elements (keep grid + exit)
+  function renderBlocks() {
     [...boardEl.querySelectorAll('.car')].forEach(el => el.remove());
-    const cs = cellSize();
-    const inset = cellInset();
+    const cs = cellSize(); const inset = cellInset();
     const palette = ['c1','c2','c3','c4','c5','c6','c7','c8'];
     let p = 0;
-    cars.forEach((car, idx) => {
+    blocks.forEach((b, idx) => {
+      if (b.destroyed) return;
       const el = document.createElement('div');
-      el.className = 'car ' + (car.target ? 'target' : palette[p++ % palette.length]);
+      const classes = ['car'];
+      if (b.target) classes.push('target');
+      else classes.push(palette[p++ % palette.length]);
+      if (b.kind === 'swivel') classes.push('swivel');
+      if (b.heavy) classes.push('heavy');
+      if (b.breakable) classes.push('breakable');
+      if (b.keyId) classes.push('key');
+      if (b.lockId) { classes.push('lock'); if (b.unlocked) classes.push('unlocked'); }
+      el.className = classes.join(' ');
       el.dataset.idx = idx;
-      const w = (car.dir === 'h' ? car.len : 1) * cs;
-      const h = (car.dir === 'v' ? car.len : 1) * cs;
+      const cells = cellsOf(b);
+      // Bounding box of cells:
+      const minR = Math.min(...cells.map(p => p.r));
+      const maxR = Math.max(...cells.map(p => p.r));
+      const minC = Math.min(...cells.map(p => p.c));
+      const maxC = Math.max(...cells.map(p => p.c));
+      const wCells = (maxC - minC + 1);
+      const hCells = (maxR - minR + 1);
       const pad = 4;
-      el.style.width = `${w - pad * 2}px`;
-      el.style.height = `${h - pad * 2}px`;
-      el.style.left = `${inset + car.col * cs + pad}px`;
-      el.style.top = `${inset + car.row * cs + pad}px`;
-      if (car.target) el.title = 'Target — drive me out!';
+      el.style.width = `${wCells * cs - pad * 2}px`;
+      el.style.height = `${hCells * cs - pad * 2}px`;
+      el.style.left = `${inset + minC * cs + pad}px`;
+      el.style.top = `${inset + minR * cs + pad}px`;
+      if (b.target) el.title = 'Target — drive me out!';
+
+      if (b.kind === 'swivel') {
+        // Pivot dot at the anchor (b.row, b.col)
+        const dot = document.createElement('div');
+        dot.className = 'pivot';
+        // Position dot at the pivot cell within this element
+        const px = (b.col - minC) * cs + cs / 2 - 7 - pad;
+        const py = (b.row - minR) * cs + cs / 2 - 7 - pad;
+        dot.style.left = `${px}px`;
+        dot.style.top = `${py}px`;
+        el.appendChild(dot);
+        const arc = document.createElement('div');
+        arc.className = 'arc-hint';
+        el.appendChild(arc);
+      }
+      if (b.keyId) {
+        // Tint key glow by id
+        const colors = { A:'#fbbf24', B:'#38bdf8', C:'#a78bfa', D:'#34d399' };
+        el.style.setProperty('--key-color', colors[b.keyId] || '#fbbf24');
+      }
+      if (b.lockId) {
+        const colors = { A:'#fbbf24', B:'#38bdf8', C:'#a78bfa', D:'#34d399' };
+        el.style.setProperty('--key-color', colors[b.lockId] || '#fbbf24');
+      }
+      // First-encounter pulse
+      const lvl = LEVELS[levelIdx];
+      const mech = firstEncounterFor(b, lvl);
+      if (mech && !progress.hintShown[mech]) el.classList.add('first-time');
+
       attachInput(el, idx);
       boardEl.appendChild(el);
     });
   }
 
-  // Reposition cars without recreating (used after window resize)
-  function repositionCars() {
-    const cs = cellSize();
-    const inset = cellInset();
-    const pad = 4;
-    [...boardEl.querySelectorAll('.car')].forEach(el => {
-      const idx = +el.dataset.idx;
-      const car = cars[idx];
-      el.style.width = `${(car.dir === 'h' ? car.len : 1) * cs - pad * 2}px`;
-      el.style.height = `${(car.dir === 'v' ? car.len : 1) * cs - pad * 2}px`;
-      el.style.left = `${inset + car.col * cs + pad}px`;
-      el.style.top = `${inset + car.row * cs + pad}px`;
-    });
-    // Reposition exit
+  function repositionBlocks() {
+    // Resize-only path: re-render is cheap enough.
+    renderBlocks();
+    // Reposition exit & tiles by rebuilding board layout
+    const cs = cellSize(); const inset = cellInset();
     const exit = boardEl.querySelector('.exit');
-    if (exit) {
-      exit.style.top = `${inset + EXIT_ROW * cs}px`;
-      exit.style.height = `${cs}px`;
+    if (exit) { exit.style.top = `${inset + EXIT_ROW * cs}px`; exit.style.height = `${cs}px`; }
+    [...boardEl.querySelectorAll('.tile')].forEach((el, i) => {
+      const t = tiles[i]; if (!t) return;
+      el.style.width = `${cs}px`; el.style.height = `${cs}px`;
+      el.style.left = `${inset + t.col * cs}px`;
+      el.style.top = `${inset + t.row * cs}px`;
+    });
+  }
+
+  function firstEncounterFor(b, lvl) {
+    if (b.kind === 'swivel') return 'swivel';
+    if (b.heavy) return 'heavy';
+    if (b.breakable) return 'breakable';
+    if (b.keyId || b.lockId) return 'keylock';
+    return null;
+  }
+  function levelHasFirstEncounter(lvl) {
+    for (const b of (lvl.blocks || lvl.cars || [])) {
+      const m = firstEncounterFor(normalizeBlock(b, 0), lvl);
+      if (m && !progress.hintShown[m]) return m;
     }
+    if ((lvl.tiles || []).some(t => t.type === 'oneway')   && !progress.hintShown.oneway)   return 'oneway';
+    if ((lvl.tiles || []).some(t => t.type === 'teleport') && !progress.hintShown.teleport) return 'teleport';
+    if (lvl.gravity && !progress.hintShown.gravity) return 'gravity';
+    return null;
+  }
+  const HINT_TEXT = {
+    swivel: 'Anchored block — drag the free end to swing it.',
+    heavy:  'Heavier blocks need more effort to budge.',
+    breakable: 'Brittle. Push too hard and it shatters.',
+    keylock: 'Match the key to its lock.',
+    oneway: 'Some tiles only allow one direction of travel.',
+    teleport: 'Stepping on this paired tile sends you across.',
+    gravity: 'Gravity pulls everything down after each move.',
+  };
+  function showHintBanner(mech) {
+    if (!mech || !HINT_TEXT[mech]) return;
+    hintBanner.textContent = HINT_TEXT[mech];
+    hintBanner.classList.add('show');
+    setTimeout(() => hintBanner.classList.remove('show'), 4200);
+    progress.hintShown[mech] = true;
+    saveProgress();
   }
 
   function updateHud() {
     const lvl = LEVELS[levelIdx];
     levelNumEl.textContent = lvl.name;
     movesEl.textContent = moves;
-    const best = progress.best[levelIdx];
+    const lk = levelKey();
+    const best = progress.best[lk];
     bestEl.textContent = best != null ? best : '—';
-    diffBadge.textContent = '';
+    optimalEl.textContent = solveData?.minMoves != null && solveData.minMoves >= 0 ? solveData.minMoves : '—';
     diffBadge.innerHTML = `<span class="difficulty-tag ${lvl.diff}">${lvl.diff.toUpperCase()}</span>`;
     btnUndo.disabled = history.length === 0;
     btnPrev.disabled = levelIdx === 0;
-    btnNext.disabled = !progress.solved[levelIdx] || levelIdx >= LEVELS.length - 1;
+    btnNext.disabled = !progress.solved[lk] || levelIdx >= LEVELS.length - 1;
+    btnReplay.disabled = !solveData || solveData.minMoves < 0;
+    // Theme switch
+    const pack = packForLevel(lvl.name);
+    document.body.dataset.theme = pack.id;
   }
 
-  // ------------ Input (mouse + touch + keyboard) ------------
-  let dragState = null;
-  let selectedCarIdx = null;
+  function levelKey() { return dailyMode ? `daily-${todayKey()}` : levelIdx; }
+  function todayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
 
+  // ============ Input: slider drag, swivel drag-arc ============
   function attachInput(el, idx) {
     el.addEventListener('mousedown', (e) => startDrag(e, idx, el));
     el.addEventListener('touchstart', (e) => startDrag(e, idx, el), { passive: false });
-    el.addEventListener('click', () => { selectedCarIdx = idx; });
+    el.addEventListener('click', () => { selectedBlockIdx = idx; });
   }
-
   function startDrag(e, idx, el) {
-    if (won) return;
+    if (won || replayActive) return;
     e.preventDefault();
-    const car = cars[idx];
-    const cs = cellSize();
-    const inset = cellInset();
-    const pageX = e.touches ? e.touches[0].clientX : e.clientX;
-    const pageY = e.touches ? e.touches[0].clientY : e.clientY;
-    const maxFwd = maxSlide(idx, +1);
-    const maxBwd = maxSlide(idx, -1);
-    dragState = {
-      idx, el, car,
-      cs, inset,
-      startX: pageX, startY: pageY,
-      origCol: car.col, origRow: car.row,
-      maxFwd, maxBwd,
-      pad: 4,
-      dx: 0, dy: 0,
-    };
+    const b = blocks[idx];
+    if (b.lockId && !b.unlocked) return;
+    const cs = cellSize(); const inset = cellInset();
+    const rect = boardEl.getBoundingClientRect();
+    const pageX = (e.touches ? e.touches[0].clientX : e.clientX);
+    const pageY = (e.touches ? e.touches[0].clientY : e.clientY);
+    if (b.kind === 'swivel') {
+      const piv = pivotOf(b);
+      const pivX = inset + (piv.c + 0.5) * cs + rect.left;
+      const pivY = inset + (piv.r + 0.5) * cs + rect.top;
+      dragState = {
+        kind: 'rotate', idx, el, b, cs, inset,
+        pivX, pivY, startAngle: Math.atan2(pageY - pivY, pageX - pivX),
+        currentAngle: Math.atan2(pageY - pivY, pageX - pivX),
+        rectLeft: rect.left, rectTop: rect.top,
+      };
+    } else {
+      const maxFwd = maxSlide(blocks, idx, +1);
+      const maxBwd = maxSlide(blocks, idx, -1);
+      dragState = {
+        kind: 'slide', idx, el, b, cs, inset,
+        startX: pageX, startY: pageY,
+        origCol: b.col, origRow: b.row,
+        maxFwd, maxBwd, pad: 4, dx: 0, dy: 0,
+        rectLeft: rect.left, rectTop: rect.top,
+      };
+    }
     el.classList.add('dragging');
-    selectedCarIdx = idx;
+    selectedBlockIdx = idx;
     document.addEventListener('mousemove', onDragMove);
     document.addEventListener('touchmove', onDragMove, { passive: false });
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchend', endDrag);
   }
-
   function onDragMove(e) {
     if (!dragState) return;
     e.preventDefault();
-    const pageX = e.touches ? e.touches[0].clientX : e.clientX;
-    const pageY = e.touches ? e.touches[0].clientY : e.clientY;
-    const { car, cs, maxFwd, maxBwd, inset, pad, origRow, origCol, el } = dragState;
-    let dx = pageX - dragState.startX;
-    let dy = pageY - dragState.startY;
-    if (car.dir === 'h') {
-      // Constrain to horizontal axis. Allow target to slide a bit past the right edge for exit.
-      const minPx = -maxBwd * cs;
-      const maxPx = maxFwd * cs;
-      dx = Math.max(minPx, Math.min(maxPx, dx));
-      dy = 0;
+    const pageX = (e.touches ? e.touches[0].clientX : e.clientX);
+    const pageY = (e.touches ? e.touches[0].clientY : e.clientY);
+    if (dragState.kind === 'slide') {
+      const { b, cs, maxFwd, maxBwd, inset, pad, origRow, origCol, el } = dragState;
+      let dx = pageX - dragState.startX;
+      let dy = pageY - dragState.startY;
+      const heavy = b.heavy && b.heavy > 1 ? b.heavy : 1;
+      // Effective distance: divide by heavy to make heavy blocks slow to move.
+      if (b.dir === 'h') {
+        const minPx = -maxBwd * cs * heavy;
+        const maxPx = (maxFwd + (b.breakable ? 0.5 : 0)) * cs * heavy;
+        dx = Math.max(minPx, Math.min(maxPx, dx));
+        dy = 0;
+      } else {
+        const minPx = -maxBwd * cs * heavy;
+        const maxPx = (maxFwd + (b.breakable ? 0.5 : 0)) * cs * heavy;
+        dy = Math.max(minPx, Math.min(maxPx, dy));
+        dx = 0;
+      }
+      dragState.dx = dx; dragState.dy = dy;
+      // Visual: divide drag by heavy so the block appears to lag
+      const visualDx = dx / heavy;
+      const visualDy = dy / heavy;
+      el.style.left = `${inset + origCol * cs + pad + visualDx}px`;
+      el.style.top = `${inset + origRow * cs + pad + visualDy}px`;
     } else {
-      const minPx = -maxBwd * cs;
-      const maxPx = maxFwd * cs;
-      dy = Math.max(minPx, Math.min(maxPx, dy));
-      dx = 0;
+      // Rotate (swivel): just track cursor angle; commit on release.
+      dragState.currentAngle = Math.atan2(pageY - dragState.pivY, pageX - dragState.pivX);
+      const da = normAngle(dragState.currentAngle - dragState.startAngle);
+      // Visual preview: highlight the arc-hint border once drag exceeds threshold.
+      const arc = ds_arc(dragState.el);
+      if (arc) arc.style.borderColor = Math.abs(da) > Math.PI / 7 ? 'rgba(251,146,60,0.95)' : 'rgba(251,146,60,0.3)';
     }
-    dragState.dx = dx;
-    dragState.dy = dy;
-    el.style.left = `${inset + origCol * cs + pad + dx}px`;
-    el.style.top = `${inset + origRow * cs + pad + dy}px`;
   }
-
   function endDrag(e) {
     if (!dragState) return;
     document.removeEventListener('mousemove', onDragMove);
     document.removeEventListener('touchmove', onDragMove);
     document.removeEventListener('mouseup', endDrag);
     document.removeEventListener('touchend', endDrag);
-    const { idx, el, car, cs, dx, dy, maxFwd, maxBwd, inset, pad, origRow, origCol } = dragState;
-    el.classList.remove('dragging');
+    const ds = dragState; dragState = null;
+    ds.el.classList.remove('dragging');
 
-    // Compute snapped step count
-    const axisDelta = car.dir === 'h' ? dx : dy;
-    let steps = Math.round(axisDelta / cs);
-    let dir = Math.sign(steps);
-    steps = Math.abs(steps);
-    if (dir > 0) steps = Math.min(steps, maxFwd);
-    if (dir < 0) steps = Math.min(steps, maxBwd);
-
-    // Check if this is the winning slide-off for target
-    let winningSlide = false;
-    if (car.target && car.dir === 'h' && dir > 0) {
-      // If user dragged enough to push the target past the right edge
-      const rightEdgeCol = car.col + car.len - 1;
-      const stepsToEdge = (GRID_COLS - 1) - rightEdgeCol;
-      // If our snapped steps reach or exceed the right edge AND the path is clear, treat as exit
-      if (steps >= stepsToEdge && stepsToEdge >= 0) {
-        // Also accept if user overshot — clamp to exit
-        winningSlide = canTargetExit(idx);
+    if (ds.kind === 'slide') {
+      const { idx, b, cs, dx, dy, maxFwd, maxBwd } = ds;
+      const heavy = b.heavy && b.heavy > 1 ? b.heavy : 1;
+      const axisPx = b.dir === 'h' ? dx : dy;
+      // True grid steps: divide by (cs * heavy) — NOTE the visual was already pre-divided.
+      let steps = Math.round(axisPx / (cs * heavy));
+      let dir = Math.sign(steps);
+      steps = Math.abs(steps);
+      let shatter = false;
+      if (b.breakable) {
+        const max = dir > 0 ? maxFwd : maxBwd;
+        // If the player overshot the wall (or another block), slide-and-shatter
+        if (steps > max) { steps = max; shatter = true; }
+      } else {
+        if (dir > 0) steps = Math.min(steps, maxFwd);
+        if (dir < 0) steps = Math.min(steps, maxBwd);
       }
-    }
 
-    if (steps > 0) {
-      applyMove(idx, dir, steps);
-    }
+      let winningSlide = false;
+      if (b.target && b.dir === 'h' && dir > 0 && steps > 0) {
+        const stepsToEdge = (GRID_COLS - 1) - (b.col + b.len - 1);
+        if (steps >= stepsToEdge && stepsToEdge >= 0 && canTargetExit(idx)) {
+          winningSlide = true;
+        }
+      }
 
-    // Snap visually to final position (or animate off for win)
-    const newCol = car.col, newRow = car.row;
-    if (winningSlide) {
-      // Animate off-screen
-      el.style.transition = 'left 0.4s cubic-bezier(.5,0,.6,1), opacity 0.4s';
-      el.style.left = `${inset + (GRID_COLS + 1) * cs + pad}px`;
-      el.style.opacity = '0.6';
-      setTimeout(() => triggerWin(), 380);
+      if (steps > 0 || shatter) applySlide(idx, dir, steps, { shatter });
+
+      // Flush hint-shown for first encounter on first move of that mechanic
+      const mech = firstEncounterFor(b);
+      if (mech && progress.hintShown[mech] === false) showHintBanner(mech);
+
+      if (winningSlide) {
+        const cs2 = cellSize(); const inset2 = cellInset(); const pad = 4;
+        ds.el.style.transition = 'left 0.4s cubic-bezier(.5,0,.6,1), opacity 0.4s';
+        ds.el.style.left = `${inset2 + (GRID_COLS + 1) * cs2 + pad}px`;
+        ds.el.style.opacity = '0.6';
+        setTimeout(() => triggerWin(), 380);
+      } else if (shatter) {
+        ds.el.classList.add('shatter');
+        setTimeout(() => renderBlocks(), 420);
+      } else {
+        renderBlocks();
+      }
     } else {
-      el.style.left = `${inset + newCol * cs + pad}px`;
-      el.style.top = `${inset + newRow * cs + pad}px`;
+      // Rotate (swivel)
+      const { idx, b } = ds;
+      const target = inferTargetOrientation(b, ds.currentAngle, ds.startAngle);
+      ds.el.style.transform = '';
+      ds.el.style.transformOrigin = '';
+      if (target && (target.dir !== b.dir || target.extent !== b.extent)) {
+        if (canRotate(blocks, idx, target.dir, target.extent)) {
+          applyRotate(idx, target.dir, target.extent);
+          if (!progress.hintShown.swivel) showHintBanner('swivel');
+        }
+      }
+      renderBlocks();
     }
-
-    dragState = null;
     updateHud();
   }
-
-  // Returns true if the target can slide right off the board from current position.
+  function normAngle(a) {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+  }
+  function ds_arc(el) { return el.querySelector('.arc-hint'); }
+  // Snap absolute cursor angle (from pivot) to the nearest cardinal orientation.
+  // Requires the user to drag at least 25° away from the original orientation to commit.
+  function inferTargetOrientation(b, currentAngle, startAngle) {
+    const da = normAngle(currentAngle - startAngle);
+    if (Math.abs(da) < Math.PI / 7) return null;
+    const cardinals = [
+      { dir: 'h', extent: +1, angle: 0 },
+      { dir: 'v', extent: +1, angle: Math.PI / 2 },
+      { dir: 'h', extent: -1, angle: Math.PI },
+      { dir: 'v', extent: -1, angle: -Math.PI / 2 },
+    ];
+    let best = null, bestDist = Infinity;
+    for (const c of cardinals) {
+      const d = Math.abs(normAngle(currentAngle - c.angle));
+      if (d < bestDist) { bestDist = d; best = c; }
+    }
+    return best;
+  }
   function canTargetExit(idx) {
-    const car = cars[idx];
-    if (!car.target || car.dir !== 'h') return false;
-    const grid = buildOccupancyGrid(cars);
-    for (let i = 0; i < car.len; i++) grid[car.row][car.col + i] = -1;
-    for (let c = car.col + car.len; c < GRID_COLS; c++) {
-      if (grid[car.row][c] !== -1) return false;
+    const b = blocks[idx];
+    if (!b.target || b.dir !== 'h') return false;
+    const occ = buildOccupancy(blocks, walls);
+    cellsOf(b).forEach(({ r, c }) => occ[r][c] = -1);
+    for (let c = b.col + b.len; c < GRID_COLS; c++) {
+      if (occ[b.row][c] !== -1) return false;
     }
     return true;
   }
@@ -904,52 +1216,49 @@
   function triggerWin() {
     won = true;
     stopTimer();
-    progress.solved[levelIdx] = true;
-    const prevBest = progress.best[levelIdx];
-    if (prevBest == null || moves < prevBest) progress.best[levelIdx] = moves;
+    const lk = levelKey();
+    progress.solved[lk] = true;
+    const prevBest = progress.best[lk];
+    if (prevBest == null || moves < prevBest) progress.best[lk] = moves;
+    if (solveData && solveData.minMoves >= 0 && moves <= solveData.minMoves) progress.perfect[lk] = true;
     saveProgress();
     const elapsed = formatTime(timerElapsed());
-    const isNew = (prevBest == null || moves < prevBest);
-    winStats.innerHTML = `Solved in <b>${moves}</b> moves &middot; ${elapsed}` +
-      (isNew ? '<br><span style="color:var(--accent-2)">★ New Best!</span>' : '');
+    // Compute stars: 3 if optimal, 2 if within +25%, else 1.
+    let stars = 1;
+    if (solveData && solveData.minMoves >= 0) {
+      if (moves <= solveData.minMoves) stars = 3;
+      else if (moves <= Math.ceil(solveData.minMoves * 1.25)) stars = 2;
+    } else stars = 2;
+    [star1, star2, star3].forEach((el, i) => el.classList.toggle('lit', i < stars));
+    winStats.innerHTML = `Solved in <b>${moves}</b> moves · ${elapsed}` +
+      (solveData && solveData.minMoves >= 0 ? `<br><span style="color:var(--muted)">Optimal: ${solveData.minMoves}</span>` : '');
     winOverlay.classList.remove('hidden');
     updateHud();
   }
 
-  // Keyboard controls: arrow keys move the selected car
+  // Keyboard: arrow keys move selected slider 1 step
   window.addEventListener('keydown', (e) => {
-    if (won) return;
-    if (selectedCarIdx == null) return;
-    const car = cars[selectedCarIdx];
+    if (won || replayActive) return;
+    if (selectedBlockIdx == null) return;
+    const b = blocks[selectedBlockIdx];
+    if (!b || b.kind === 'swivel') return;
     let delta = 0, axis = '';
     if (e.key === 'ArrowLeft')  { axis = 'h'; delta = -1; }
     if (e.key === 'ArrowRight') { axis = 'h'; delta = +1; }
     if (e.key === 'ArrowUp')    { axis = 'v'; delta = -1; }
     if (e.key === 'ArrowDown')  { axis = 'v'; delta = +1; }
     if (!axis) return;
-    if (axis !== car.dir) return;
+    if (axis !== b.dir) return;
     e.preventDefault();
-    const stepsAvail = maxSlide(selectedCarIdx, delta);
+    const stepsAvail = maxSlide(blocks, selectedBlockIdx, delta);
     if (stepsAvail === 0) return;
-    // Move 1 step per key press for precision
-    applyMove(selectedCarIdx, delta, 1);
-    if (car.target && canTargetExit(selectedCarIdx) && delta > 0 && car.col + car.len === GRID_COLS) {
-      // Animate off
-      const cs = cellSize(), inset = cellInset(), pad = 4;
-      const el = boardEl.querySelector(`.car[data-idx="${selectedCarIdx}"]`);
-      if (el) {
-        el.style.transition = 'left 0.4s cubic-bezier(.5,0,.6,1), opacity 0.4s';
-        el.style.left = `${inset + (GRID_COLS + 1) * cs + pad}px`;
-        el.style.opacity = '0.6';
-      }
-      setTimeout(() => triggerWin(), 380);
-    } else {
-      renderCars();
-    }
+    applySlide(selectedBlockIdx, delta, 1);
+    if (isSolved(blocks)) { triggerWin(); return; }
+    renderBlocks();
     updateHud();
   });
 
-  // ------------ Timer ------------
+  // ============ Timer ============
   function startTimer() {
     timerStart = Date.now();
     if (timerInterval) clearInterval(timerInterval);
@@ -957,176 +1266,1302 @@
       timeEl.textContent = formatTime(timerElapsed());
     }, 500);
   }
-  function stopTimer() {
-    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  }
+  function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } }
   function timerElapsed() { return Math.floor((Date.now() - timerStart) / 1000); }
-  function formatTime(s) {
-    const m = Math.floor(s / 60), sec = s % 60;
-    return `${m}:${sec.toString().padStart(2,'0')}`;
-  }
+  function formatTime(s) { const m = Math.floor(s / 60), sec = s % 60; return `${m}:${sec.toString().padStart(2,'0')}`; }
 
-  // ------------ Level loading ------------
+  // ============ Level loading ============
   function loadLevel(idx) {
     if (idx < 0 || idx >= LEVELS.length) return;
     levelIdx = idx;
-    cars = LEVELS[idx].cars.map(c => ({ ...c }));
-    history = [];
-    moves = 0;
-    won = false;
+    dailyMode = false;
+    const lvl = LEVELS[idx];
+    const rawBlocks = lvl.blocks || lvl.cars || [];
+    blocks = rawBlocks.map((b, i) => normalizeBlock(b, i));
+    tiles = (lvl.tiles || []).map(normalizeTile);
+    walls = tiles.filter(t => t.type === 'wall').map(t => ({ r: t.row, c: t.col }));
+    onewayMap = {};
+    teleportMap = {};
+    tiles.forEach(t => {
+      if (t.type === 'oneway') onewayMap[`${t.row},${t.col}`] = t.arrowDir;
+      if (t.type === 'teleport') {
+        // pair with another teleport sharing pairId
+        const partner = tiles.find(o => o !== t && o.type === 'teleport' && o.pairId === t.pairId);
+        if (partner) teleportMap[`${t.row},${t.col}`] = { r: partner.row, c: partner.col };
+      }
+    });
+    gravity = lvl.gravity || null;
+    history = []; moves = 0; won = false; selectedBlockIdx = null;
     winOverlay.classList.add('hidden');
-    selectedCarIdx = null;
+    updateLocks();
     buildBoard();
-    renderCars();
+    renderBlocks();
+    // BFS solve in background (cached per session)
+    solveData = solveLevelCached(idx);
     updateHud();
     startTimer();
+    // Fire first-encounter banner once mounted
+    const mech = levelHasFirstEncounter(lvl);
+    if (mech) setTimeout(() => showHintBanner(mech), 600);
   }
 
-  // ------------ Level menu ------------
+  // ============ Level menu ============
   function openLevelMenu() {
-    levelGrid.innerHTML = '';
-    LEVELS.forEach((lvl, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'level-btn';
-      const unlocked = i === 0 || progress.solved[i - 1] || progress.solved[i];
-      btn.disabled = !unlocked;
-      if (progress.solved[i]) btn.classList.add('solved');
-      if (i === levelIdx) btn.classList.add('current');
-      const best = progress.best[i];
-      btn.innerHTML = `<span>${lvl.name}</span>` +
-        (best != null ? `<span class="best">★ ${best}</span>` : '');
-      btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        levelModal.classList.add('hidden');
-        loadLevel(i);
+    levelPacks.innerHTML = '';
+    PACKS.forEach(pack => {
+      const sec = document.createElement('div'); sec.className = 'pack-section';
+      const h = document.createElement('h3'); h.textContent = pack.name; sec.appendChild(h);
+      const grid = document.createElement('div'); grid.id = 'level-grid'; grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(5, 1fr)'; grid.style.gap = '8px';
+      LEVELS.forEach((lvl, i) => {
+        if (lvl.name < pack.range[0] || lvl.name > pack.range[1]) return;
+        const btn = document.createElement('button'); btn.className = 'level-btn';
+        const unlocked = i === 0 || progress.solved[i - 1] || progress.solved[i];
+        btn.disabled = !unlocked;
+        if (progress.solved[i]) btn.classList.add('solved');
+        if (progress.perfect[i]) btn.classList.add('perfect');
+        if (i === levelIdx) btn.classList.add('current');
+        const best = progress.best[i];
+        const perfect = progress.perfect[i];
+        btn.innerHTML = `<span>${lvl.name}</span>` +
+          (best != null ? `<span class="best">${perfect ? '★' : ''} ${best}</span>` : '');
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          levelModal.classList.add('hidden');
+          loadLevel(i);
+        });
+        grid.appendChild(btn);
       });
-      levelGrid.appendChild(btn);
+      sec.appendChild(grid);
+      levelPacks.appendChild(sec);
     });
     levelModal.classList.remove('hidden');
   }
 
-  // ------------ Wire up controls ------------
-  btnReset.addEventListener('click', () => loadLevel(levelIdx));
-  btnUndo.addEventListener('click', undoMove);
-  btnPrev.addEventListener('click', () => loadLevel(Math.max(0, levelIdx - 1)));
-  btnNext.addEventListener('click', () => loadLevel(Math.min(LEVELS.length - 1, levelIdx + 1)));
-  btnLevels.addEventListener('click', openLevelMenu);
-  btnCloseLevels.addEventListener('click', () => levelModal.classList.add('hidden'));
-  btnNextFromWin.addEventListener('click', () => {
-    if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
-    else winOverlay.classList.add('hidden');
-  });
-  levelModal.addEventListener('click', (e) => {
-    if (e.target === levelModal) levelModal.classList.add('hidden');
-  });
-
-  window.addEventListener('resize', () => {
-    repositionCars();
-    const exit = boardEl.querySelector('.exit');
-    if (exit) {
-      const inset = cellInset(), cs = cellSize();
-      exit.style.top = `${inset + EXIT_ROW * cs}px`;
-      exit.style.height = `${cs}px`;
-    }
-  });
-
-  // ------------ BFS verifier (runs once, logs unsolvable levels) ------------
-  function encodeState(carList) {
-    return carList.map(c => `${c.row},${c.col}`).join('|');
+  // ============ BFS solver ============
+  // Encodes the full game state including swivel orientations, destruction, lock states, gravity-settled positions.
+  function encodeState(blockList) {
+    return blockList.map(b => b.destroyed ? 'X'
+      : `${b.dir}${b.extent || 1},${b.row},${b.col}${b.unlocked ? 'U' : ''}`
+    ).join('|');
   }
-  function isSolved(carList) {
-    const t = carList.find(c => c.target);
-    if (!t) return false;
-    // target must be free to slide off right edge
-    const grid = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
-    carList.forEach((c, idx) => {
-      for (let i = 0; i < c.len; i++) {
-        const r = c.row + (c.dir === 'v' ? i : 0);
-        const cc = c.col + (c.dir === 'h' ? i : 0);
-        grid[r][cc] = idx;
+
+  function bfsSolve(initialBlocks, levelTiles, levelGravity, maxStates = MAX_BFS_STATES) {
+    // Build closures that read THIS level's tiles, not the active level's.
+    const wallsLocal = (levelTiles || []).filter(t => t.type === 'wall').map(t => ({ r: t.row, c: t.col }));
+    const onewayLocal = {}; const teleportLocal = {};
+    (levelTiles || []).forEach(t => {
+      if (t.type === 'oneway') onewayLocal[`${t.row},${t.col}`] = t.arrowDir;
+      if (t.type === 'teleport') {
+        const partner = (levelTiles || []).find(o => o !== t && o.type === 'teleport' && o.pairId === t.pairId);
+        if (partner) teleportLocal[`${t.row},${t.col}`] = { r: partner.row, c: partner.col };
       }
     });
-    for (let i = 0; i < t.len; i++) grid[t.row][t.col + i] = -1;
-    for (let c = t.col + t.len; c < GRID_COLS; c++) {
-      if (grid[t.row][c] !== -1) return false;
+
+    function occOf(state) {
+      const g = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
+      wallsLocal.forEach(w => { if (in_bounds(w.r, w.c)) g[w.r][w.c] = -2; });
+      state.forEach((b, idx) => {
+        cellsOf(b).forEach(({ r, c }) => { if (in_bounds(r, c)) g[r][c] = idx; });
+      });
+      return g;
     }
-    return true;
-  }
-  function bfsSolve(initialCars, maxStates = 200000) {
-    const start = initialCars.map(c => ({ ...c }));
-    const visited = new Set([encodeState(start)]);
+    function lockUpdateLocal(state) {
+      const keysByID = {};
+      state.forEach((b, i) => { if (b.keyId && !b.destroyed) (keysByID[b.keyId] ||= []).push(i); });
+      state.forEach(b => {
+        if (b.lockId && !b.unlocked) {
+          const keys = keysByID[b.lockId] || [];
+          const lockCells = cellsOf(b);
+          let touch = false;
+          for (const ki of keys) {
+            const kc = cellsOf(state[ki]);
+            outer: for (const a of lockCells) for (const c of kc) {
+              if (Math.abs(a.r - c.r) + Math.abs(a.c - c.c) === 1) { touch = true; break outer; }
+            }
+            if (touch) break;
+          }
+          if (touch) b.unlocked = true;
+        }
+      });
+    }
+    function gravitySettleLocal(state) {
+      if (!levelGravity) return;
+      const dr = levelGravity === 'down' ? +1 : -1;
+      let changed = true;
+      while (changed) {
+        changed = false;
+        const order = [...state.keys()].sort((a, b) => {
+          const ra = Math.max(...cellsOf(state[a]).map(p => p.r), -Infinity);
+          const rb = Math.max(...cellsOf(state[b]).map(p => p.r), -Infinity);
+          return levelGravity === 'down' ? rb - ra : ra - rb;
+        });
+        for (const i of order) {
+          const b = state[i];
+          if (b.destroyed) continue;
+          if (b.kind === 'swivel') continue;
+          if (b.lockId && !b.unlocked) continue;
+          if (b.keyId) continue;
+          const cells = cellsOf(b);
+          const occ = occOf(state);
+          cells.forEach(({ r, c }) => occ[r][c] = -1);
+          let canFall = true;
+          for (const { r, c } of cells) {
+            const nr = r + dr;
+            if (!in_bounds(nr, c)) { canFall = false; break; }
+            if (occ[nr][c] !== -1) { canFall = false; break; }
+            const okey = `${nr},${c}`;
+            if (onewayLocal[okey]) {
+              const need = dr > 0 ? 'down' : 'up';
+              if (onewayLocal[okey] !== need) { canFall = false; break; }
+            }
+          }
+          if (canFall) { b.row += dr; changed = true; }
+        }
+      }
+    }
+    function teleportLocalFn(state, idx) {
+      const b = state[idx];
+      if (b.destroyed || b.kind === 'swivel') return;
+      const cells = cellsOf(b);
+      for (let i = 0; i < cells.length; i++) {
+        const { r, c } = cells[i];
+        const partner = teleportLocal[`${r},${c}`];
+        if (!partner) continue;
+        const ext = b.extent || 1;
+        const dr = b.dir === 'v' ? ext : 0;
+        const dc = b.dir === 'h' ? ext : 0;
+        const newRow = partner.r - i * dr;
+        const newCol = partner.c - i * dc;
+        const occ = occOf(state);
+        cellsOf(b).forEach(p => occ[p.r][p.c] = -1);
+        let ok = true;
+        for (let j = 0; j < b.len; j++) {
+          const nr = newRow + j * dr;
+          const nc = newCol + j * dc;
+          if (!in_bounds(nr, nc)) { ok = false; break; }
+          if (occ[nr][nc] !== -1) { ok = false; break; }
+        }
+        if (ok) { b.row = newRow; b.col = newCol; }
+        return;
+      }
+    }
+    function settleLocal(state, idx) {
+      if (idx != null && idx >= 0) teleportLocalFn(state, idx);
+      gravitySettleLocal(state);
+      lockUpdateLocal(state);
+    }
+
+    // Slide max steps
+    function maxSlideLocal(state, idx, delta) {
+      const b = state[idx];
+      if (!b || b.destroyed || b.kind === 'swivel') return 0;
+      if (b.lockId && !b.unlocked) return 0;
+      const occ = occOf(state);
+      cellsOf(b).forEach(({ r, c }) => occ[r][c] = -1);
+      let steps = 0;
+      while (true) {
+        const next = steps + 1;
+        let cr, cc;
+        if (delta > 0) {
+          cr = b.row + (b.dir === 'v' ? b.len - 1 + next : 0);
+          cc = b.col + (b.dir === 'h' ? b.len - 1 + next : 0);
+        } else {
+          cr = b.row + (b.dir === 'v' ? -next : 0);
+          cc = b.col + (b.dir === 'h' ? -next : 0);
+        }
+        if (!in_bounds(cr, cc)) {
+          if (b.target && b.dir === 'h' && delta > 0 && cr === EXIT_ROW) return steps + GRID_COLS;
+          break;
+        }
+        if (occ[cr][cc] !== -1) break;
+        const tkey = `${cr},${cc}`;
+        if (onewayLocal[tkey]) {
+          const moveDir = (b.dir === 'h' ? (delta > 0 ? 'right' : 'left') : (delta > 0 ? 'down' : 'up'));
+          if (onewayLocal[tkey] !== moveDir) break;
+        }
+        steps = next;
+      }
+      return steps;
+    }
+    function canRotateLocal(state, idx, newDir, newExtent) {
+      const b = state[idx];
+      if (b.kind !== 'swivel') return false;
+      if (b.dir === newDir) return false;
+      const occ = occOf(state);
+      cellsOf(b).forEach(({ r, c }) => occ[r][c] = -1);
+      const { swept, endBody } = sweptCells(b, newDir, newExtent);
+      for (const { r, c } of endBody) {
+        if (!in_bounds(r, c)) return false;
+        if (occ[r][c] !== -1) return false;
+      }
+      for (const { r, c } of swept) {
+        if (!in_bounds(r, c)) return false;
+        if (occ[r][c] !== -1) return false;
+      }
+      return true;
+    }
+
+    function isSolvedLocal(state) {
+      // Target is fully solved only when it has driven off the right edge.
+      const t = state.find(b => b.target && !b.destroyed);
+      if (!t) return false;
+      return t.col >= GRID_COLS;
+    }
+
+    const start = initialBlocks.map(b => ({ ...b }));
+    settleLocal(start, -1);
+    const visited = new Map(); visited.set(encodeState(start), 0);
+    const parent = new Map(); parent.set(encodeState(start), null);
     const queue = [{ state: start, depth: 0 }];
     let head = 0;
-    while (head < queue.length && visited.size < maxStates) {
+    while (head < queue.length) {
+      if (visited.size >= maxStates) return { minMoves: -1, path: null };
       const { state, depth } = queue[head++];
-      if (isSolved(state)) return depth;
-      // Generate moves
+      if (isSolvedLocal(state)) return reconstructPath(start, state, parent);
+      // Slide moves
       for (let i = 0; i < state.length; i++) {
+        const b = state[i];
+        if (!b || b.destroyed || b.kind === 'swivel') continue;
+        const isHeavy = b.heavy && b.heavy > 1;
         for (const delta of [-1, +1]) {
-          // Compute occupancy
-          const grid = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(-1));
-          state.forEach((c, idx) => {
-            for (let k = 0; k < c.len; k++) {
-              const r = c.row + (c.dir === 'v' ? k : 0);
-              const cc = c.col + (c.dir === 'h' ? k : 0);
-              grid[r][cc] = idx;
+          const maxS = Math.min(maxSlideLocal(state, i, delta), GRID_COLS);
+          // Heavy: only 1-cell increments allowed per move; cost = b.heavy.
+          // Non-heavy: any 1..maxS step count is one move; cost = 1.
+          const stepRange = isHeavy ? [1] : Array.from({ length: maxS }, (_, k) => k + 1);
+          for (const s of stepRange) {
+            if (s > maxS) continue;
+            const ns = state.map(x => ({ ...x }));
+            if (ns[i].dir === 'h') ns[i].col += delta * s;
+            else ns[i].row += delta * s;
+            settleLocal(ns, i);
+            const cost = isHeavy ? b.heavy : 1;
+            const key = encodeState(ns);
+            const nd = depth + cost;
+            if (!visited.has(key) || visited.get(key) > nd) {
+              visited.set(key, nd);
+              parent.set(key, { from: encodeState(state), move: { kind: 'slide', idx: i, delta, steps: s } });
+              queue.push({ state: ns, depth: nd });
             }
-          });
-          const car = state[i];
-          for (let k = 0; k < car.len; k++) {
-            const r = car.row + (car.dir === 'v' ? k : 0);
-            const cc = car.col + (car.dir === 'h' ? k : 0);
-            grid[r][cc] = -1;
           }
-          let steps = 0;
-          while (true) {
-            const next = steps + 1;
-            let cr, cc;
-            if (delta > 0) {
-              cr = car.row + (car.dir === 'v' ? car.len - 1 + next : 0);
-              cc = car.col + (car.dir === 'h' ? car.len - 1 + next : 0);
-            } else {
-              cr = car.row + (car.dir === 'v' ? -next : 0);
-              cc = car.col + (car.dir === 'h' ? -next : 0);
+          // Breakable: shatter option (full slide + destroy in place)
+          if (b.breakable && maxS > 0) {
+            const ns = state.map(x => ({ ...x }));
+            const slideS = isHeavy ? 1 : maxS;
+            if (ns[i].dir === 'h') ns[i].col += delta * slideS;
+            else ns[i].row += delta * slideS;
+            ns[i].destroyed = true;
+            settleLocal(ns, i);
+            const cost = isHeavy ? b.heavy : 1;
+            const key = encodeState(ns);
+            const nd = depth + cost;
+            if (!visited.has(key) || visited.get(key) > nd) {
+              visited.set(key, nd);
+              parent.set(key, { from: encodeState(state), move: { kind: 'shatter', idx: i, delta, steps: slideS } });
+              queue.push({ state: ns, depth: nd });
             }
-            if (cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) break;
-            if (grid[cr][cc] !== -1) break;
-            steps = next;
-            // Push state (each step is its own state — count as one move per slide direction)
           }
-          if (steps > 0) {
-            // Apply each possible step length as separate states (since "move" = any number of cells)
-            for (let s = 1; s <= steps; s++) {
-              const newState = state.map(c => ({ ...c }));
-              if (car.dir === 'h') newState[i].col += delta * s;
-              else newState[i].row += delta * s;
-              const key = encodeState(newState);
-              if (!visited.has(key)) {
-                visited.add(key);
-                queue.push({ state: newState, depth: depth + 1 });
-              }
+        }
+      }
+      // Rotate moves (swivels)
+      for (let i = 0; i < state.length; i++) {
+        const b = state[i];
+        if (!b || b.destroyed || b.kind !== 'swivel') continue;
+        for (const o of adjacentRotations(b)) {
+          if (canRotateLocal(state, i, o.dir, o.extent)) {
+            const ns = state.map(x => ({ ...x }));
+            ns[i].dir = o.dir; ns[i].extent = o.extent;
+            settleLocal(ns, i);
+            const key = encodeState(ns);
+            const nd = depth + 1;
+            if (!visited.has(key) || visited.get(key) > nd) {
+              visited.set(key, nd);
+              parent.set(key, { from: encodeState(state), move: { kind: 'rotate', idx: i, dir: o.dir, extent: o.extent } });
+              queue.push({ state: ns, depth: nd });
             }
           }
         }
       }
     }
-    return -1;
+    return { minMoves: -1, path: null };
+
+    function reconstructPath(startState, endState, parent) {
+      const path = [];
+      let key = encodeState(endState);
+      while (parent.get(key)) {
+        const p = parent.get(key);
+        path.push(p.move);
+        key = p.from;
+      }
+      path.reverse();
+      const total = path.reduce((acc, m) => {
+        if (m.kind === 'rotate') return acc + 1;
+        const isHeavy = startState[m.idx].heavy && startState[m.idx].heavy > 1;
+        return acc + (isHeavy ? startState[m.idx].heavy : 1);
+      }, 0);
+      return { minMoves: total, path };
+    }
   }
-  function verifyLevels() {
+
+  // Cache solver results per level (in memory; rebuilt at each session)
+  const solverCache = new Map();
+  function solveLevelCached(idx) {
+    if (solverCache.has(idx)) return solverCache.get(idx);
+    const lvl = LEVELS[idx];
+    const initBlocks = (lvl.blocks || lvl.cars || []).map((b, i) => normalizeBlock(b, i));
+    const tilesL = (lvl.tiles || []).map(normalizeTile);
+    const result = bfsSolve(initBlocks, tilesL, lvl.gravity || null);
+    solverCache.set(idx, result);
+    return result;
+  }
+
+  // ============ Replay (watch optimal solution) ============
+  function playReplay() {
+    if (!solveData || !solveData.path) return;
+    replayActive = true;
+    replayModal.classList.remove('hidden');
+    replayTotalEl.textContent = solveData.path.length;
+    // Reset the level
+    loadLevel(levelIdx);
+    replayActive = true; // loadLevel resets, re-enable
+    let step = 0;
+    function next() {
+      if (!replayActive) return;
+      if (step >= solveData.path.length) {
+        replayModal.classList.add('hidden');
+        replayActive = false;
+        return;
+      }
+      const m = solveData.path[step++];
+      replayStepEl.textContent = step;
+      if (m.kind === 'slide') {
+        applySlide(m.idx, m.delta, m.steps);
+      } else if (m.kind === 'shatter') {
+        applySlide(m.idx, m.delta, m.steps, { shatter: true });
+      } else if (m.kind === 'rotate') {
+        applyRotate(m.idx, m.dir, m.extent);
+      }
+      renderBlocks();
+      updateHud();
+      if (isSolved(blocks)) { triggerWin(); replayActive = false; replayModal.classList.add('hidden'); return; }
+      setTimeout(next, 600);
+    }
+    setTimeout(next, 400);
+  }
+  function stopReplay() { replayActive = false; replayModal.classList.add('hidden'); }
+
+  // ============ Daily challenge ============
+  // Pick a level by deterministic seed from today's date.
+  function dailyLevelIdx() {
+    const d = new Date();
+    const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    // Use mid-game levels (15..70) for daily.
+    const pool = LEVELS.length;
+    const lo = Math.min(14, pool - 1);
+    const hi = Math.min(69, pool - 1);
+    if (hi <= lo) return 0;
+    return lo + (seed % (hi - lo + 1));
+  }
+  function loadDaily() {
+    const idx = dailyLevelIdx();
+    loadLevel(idx);
+    dailyMode = true;
+    levelNumEl.textContent = `Daily — ${LEVELS[idx].name}`;
+  }
+
+  // ============ Wire up ============
+  btnReset.addEventListener('click', () => loadLevel(levelIdx));
+  btnUndo.addEventListener('click', undoMove);
+  btnPrev.addEventListener('click', () => loadLevel(Math.max(0, levelIdx - 1)));
+  btnNext.addEventListener('click', () => loadLevel(Math.min(LEVELS.length - 1, levelIdx + 1)));
+  btnLevels.addEventListener('click', openLevelMenu);
+  btnReplay.addEventListener('click', playReplay);
+  btnDaily.addEventListener('click', loadDaily);
+  btnReplayStop.addEventListener('click', stopReplay);
+  btnCloseLevels.addEventListener('click', () => levelModal.classList.add('hidden'));
+  btnNextFromWin.addEventListener('click', () => {
+    if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1);
+    else winOverlay.classList.add('hidden');
+  });
+  btnWatchFromWin.addEventListener('click', () => { winOverlay.classList.add('hidden'); playReplay(); });
+  levelModal.addEventListener('click', (e) => { if (e.target === levelModal) levelModal.classList.add('hidden'); });
+  window.addEventListener('resize', repositionBlocks);
+
+  // ============ Boot ============
+  // Levels are appended below this script tag execution.
+  // We need to wait until LEVELS is populated, then loadLevel(0).
+  // The big LEVELS array follows in a second <script> block to keep this manageable.
+  window.__plg = { LEVELS, loadLevel, bfsSolve, normalizeBlock, normalizeTile, PACKS };
+})();
+</script>
+
+<!-- =========================================================================
+     LEVELS
+     Each entry: { name, diff, blocks, tiles?, gravity?, hint }
+     Block formats:
+       Slider:  { dir:'h'|'v', len:2|3, row, col, target?, heavy?, breakable?, keyId?, lockId? }
+       Swivel:  { kind:'swivel', dir, len:2|3, row, col, extent? }
+     Tile types: 'oneway' (with arrowDir), 'teleport' (with pairId), 'wall'
+     ========================================================================= -->
+<script>
+(() => {
+  const L = window.__plg.LEVELS;
+  // Levels populate via Edit calls. Stub levels to keep boot working:
+  L.push({ name: 1, diff: 'easy', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+  ], hint: '1 blocker. Slide up or down, drive out.' });
+  L.push({ name: 2, diff: 'easy', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 3 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+  ], hint: 'Two blockers, both vertical.' });
+  L.push({ name: 3, diff: 'easy', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+  ], hint: 'Length-3 only fits in one direction.' });
+  L.push({ name: 4, diff: 'easy', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Bottom row blocks the vertical you need to move.' });
+  L.push({ name: 5, diff: 'easy', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+    { dir: 'h', len: 3, row: 3, col: 1 },
+    { dir: 'v', len: 2, row: 4, col: 4 },
+  ], hint: 'Reorganise lower half before clearing the path.' });
+
+  // ===== 6-10: tighter packs (no new mechanics, just denser puzzles) =====
+  L.push({ name: 6, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 1, target: true },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 3 },
+  ], hint: 'Pack feel: clear row-2 blockers in order.' });
+  L.push({ name: 7, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 2 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+  ], hint: 'Top-row vertical must slide down past mid-row blocker.' });
+  L.push({ name: 8, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'v', len: 3, row: 3, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Two columns of stacked verticals — only one path opens.' });
+  L.push({ name: 9, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 1, target: true },
+    { dir: 'v', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'v', len: 2, row: 4, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 1 },
+    { dir: 'v', len: 2, row: 3, col: 4 },
+    { dir: 'h', len: 2, row: 3, col: 2 },
+  ], hint: 'Tight middle row — sequence matters.' });
+  L.push({ name: 10, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 2 },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 2, row: 3, col: 2 },
+    { dir: 'v', len: 2, row: 4, col: 4 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Mid-game density. Find the unblocking sequence.' });
+
+  // ===== 11-15: SWIVEL introduction =====
+  L.push({ name: 11, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 5, extent: +1 },
+  ], hint: 'First swivel: pivot at (1,5), body blocks (2,5). Rotate left or up.' });
+  L.push({ name: 12, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 5, extent: +1 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 3 },
+  ], hint: 'Same swivel, more clutter — rotation still solves it.' });
+  L.push({ name: 13, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 3, row: 0, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+  ], hint: 'Swivel reaches into row 2 — slide top-row blocker out before rotating.' });
+  L.push({ name: 14, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 0, col: 0, extent: +1 },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 5, extent: +1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Two swivels — one near, one far. Each rotates independently.' });
+  L.push({ name: 15, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 3, row: 0, col: 5, extent: +1 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 2 },
+    { dir: 'v', len: 2, row: 4, col: 4 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Long swivel along right edge — needs swept-cell space to flip.' });
+
+  // ===== 16-22: HEAVY/STICKY blocks =====
+  L.push({ name: 16, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, heavy: 2 },
+  ], hint: 'First heavy block — 2 moves to shift one cell.' });
+  L.push({ name: 17, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Move the cheap blockers first; heavy is a cost commitment.' });
+  L.push({ name: 18, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 3, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 4 },
+  ], hint: 'Heavy len-3 in the way — barely needs to budge.' });
+  L.push({ name: 19, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 1, target: true },
+    { dir: 'v', len: 2, row: 0, col: 0, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 2, row: 1, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+  ], hint: 'Heavy in the lane forces real commitment.' });
+  L.push({ name: 20, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 3, heavy: 2 },
+    { dir: 'v', len: 2, row: 1, col: 5, heavy: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Two heavies. Move only what you must.' });
+  L.push({ name: 21, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 5, heavy: 2 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 4 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 3 },
+  ], hint: 'Heavy len-3 must come down — reorganise the bottom-right first.' });
+  L.push({ name: 22, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 5, extent: +1 },
+    { dir: 'v', len: 2, row: 1, col: 3, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 3, row: 0, col: 1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 4 },
+  ], hint: 'Heavy in the lane plus swivel at the exit — sequence matters.' });
+
+  // ===== 23-30: BREAKABLE blocks =====
+  L.push({ name: 23, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, breakable: true },
+  ], hint: 'First breakable. Slide hard into the wall — it shatters.' });
+  L.push({ name: 24, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 3, breakable: true },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+  ], hint: 'Breakable beats relocating — sometimes.' });
+  L.push({ name: 25, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'h', len: 2, row: 2, col: 4, breakable: true },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+  ], hint: 'Breakable on row 2 — shatter is one move, sliding requires three.' });
+  L.push({ name: 26, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 4, breakable: true },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 2 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Long breakable — only one direction has shatter room.' });
+  L.push({ name: 27, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 3, breakable: true },
+    { dir: 'v', len: 2, row: 1, col: 5, breakable: true },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 0 },
+  ], hint: 'Two breakables — choose which to keep.' });
+  L.push({ name: 28, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, breakable: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 3, col: 5, extent: -1 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 2, row: 4, col: 2 },
+  ], hint: 'Breakable + swivel: shatter clears the rotation arc.' });
+  L.push({ name: 29, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 1, target: true },
+    { dir: 'v', len: 2, row: 0, col: 0, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 1, breakable: true },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'v', len: 2, row: 3, col: 3 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy + breakable: smashing saves moves.' });
+  L.push({ name: 30, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 3, row: 0, col: 0, extent: +1 },
+    { dir: 'v', len: 2, row: 1, col: 4, breakable: true },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 2 },
+  ], hint: 'Long swivel up top, breakable holds the lane open.' });
+
+  // ===== 31-38: KEY & LOCK system =====
+  L.push({ name: 31, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+  ], hint: 'Drive the key into reach of the lock to free it.' });
+  L.push({ name: 32, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 5, col: 3 },
+  ], hint: 'Key on a different row — clear its lane first.' });
+  L.push({ name: 33, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 3, col: 5, lockId: 'B' },
+    { dir: 'h', len: 2, row: 4, col: 0, keyId: 'A' },
+    { dir: 'h', len: 2, row: 5, col: 4, keyId: 'B' },
+  ], hint: 'Two locks, two keys, no overlap.' });
+  L.push({ name: 34, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 1, target: true },
+    { dir: 'v', len: 2, row: 1, col: 5, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'v', len: 3, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'v', len: 2, row: 3, col: 3 },
+  ], hint: 'Lock at the exit — drive the key up to it.' });
+  L.push({ name: 35, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Lock blocks the lane — drive the key up to free it.' });
+  L.push({ name: 36, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 5, lockId: 'A' },
+    { dir: 'h', len: 2, row: 5, col: 4, keyId: 'A' },
+    { dir: 'v', len: 2, row: 3, col: 3 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 4, col: 1, extent: +1 },
+  ], hint: 'Swivel + key = key must travel past pivots.' });
+  L.push({ name: 37, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 5, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], hint: 'Long lock dominates the right column — key reaches it from below.' });
+  L.push({ name: 38, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 5, col: 0, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 2, breakable: true },
+    { dir: 'v', len: 2, row: 4, col: 4 },
+  ], hint: 'Breakable opens the key\'s path.' });
+
+  // ===== 39-46: ONE-WAY tiles =====
+  L.push({ name: 39, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+  ], tiles: [
+    { row: 0, col: 4, type: 'oneway', arrowDir: 'left' },
+  ], hint: 'Arrow tile means traffic only flows that way through it.' });
+  L.push({ name: 40, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'v', len: 2, row: 3, col: 3 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 1, col: 2 },
+  ], tiles: [
+    { row: 1, col: 4, type: 'oneway', arrowDir: 'right' },
+    { row: 4, col: 3, type: 'oneway', arrowDir: 'down' },
+  ], hint: 'Two arrow tiles steer the order of moves.' });
+  L.push({ name: 41, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+    { dir: 'v', len: 2, row: 1, col: 2 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+  ], tiles: [
+    { row: 3, col: 4, type: 'oneway', arrowDir: 'down' },
+  ], hint: 'Vertical can only descend through that lane.' });
+  L.push({ name: 42, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 2 },
+  ], tiles: [
+    { row: 0, col: 3, type: 'oneway', arrowDir: 'down' },
+    { row: 4, col: 5, type: 'oneway', arrowDir: 'down' },
+  ], hint: 'One-ways pin verticals to specific positions.' });
+  L.push({ name: 43, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 5 },
+  ], tiles: [
+    { row: 1, col: 5, type: 'oneway', arrowDir: 'up' },
+  ], hint: 'Swivel arc must respect the one-way arrow.' });
+  L.push({ name: 44, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 2 },
+  ], tiles: [
+    { row: 4, col: 4, type: 'oneway', arrowDir: 'down' },
+  ], hint: 'Heavy commits to a one-way path.' });
+  L.push({ name: 45, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 2, row: 3, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], tiles: [
+    { row: 4, col: 3, type: 'oneway', arrowDir: 'right' },
+  ], hint: 'Key has to take the long way around.' });
+  L.push({ name: 46, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 1, target: true },
+    { dir: 'v', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 4 },
+    { dir: 'h', len: 2, row: 5, col: 2 },
+  ], tiles: [
+    { row: 1, col: 4, type: 'oneway', arrowDir: 'down' },
+    { row: 5, col: 1, type: 'oneway', arrowDir: 'right' },
+  ], hint: 'Two arrows shape the puzzle\'s grain.' });
+
+  // ===== 47-55: GRAVITY =====
+  // Pattern: a swivel at row 3 supports the target on row 2. Swivels are immune to gravity.
+  L.push({ name: 47, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+  ], gravity: 'down', hint: 'Gravity pulls everything down — the swivel-floor catches the target.' });
+  L.push({ name: 48, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+  ], gravity: 'down', hint: 'After your move, things settle. Plan around the drop.' });
+  L.push({ name: 49, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+  ], gravity: 'down', hint: 'Two horizontals will drop into row 2 unless you slide them off-column.' });
+  L.push({ name: 50, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'h', len: 2, row: 1, col: 2 },
+  ], gravity: 'down', hint: 'Stack up top — only one column drains right.' });
+  L.push({ name: 51, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 3, row: 3, col: 3, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 1, col: 3 },
+  ], gravity: 'down', hint: 'Long swivel scaffold — blockers settle exactly on row 2.' });
+  L.push({ name: 52, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'h', len: 2, row: 1, col: 4 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+  ], gravity: 'down', hint: 'Crowded top, settles into a tight row 2.' });
+  L.push({ name: 53, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 4, breakable: true },
+    { dir: 'h', len: 2, row: 1, col: 4 },
+  ], gravity: 'down', hint: 'Shatter is permanent — gravity will rearrange the rest.' });
+  L.push({ name: 54, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 2, keyId: 'A' },
+  ], gravity: 'down', hint: 'Lock holds row-2 column — key drops in after sliding into reach.' });
+  L.push({ name: 55, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 3, row: 3, col: 3, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'h', len: 2, row: 1, col: 4 },
+  ], gravity: 'down', hint: 'Pack drops in waves — order matters most here.' });
+
+  // ===== 56-65: TELEPORT tiles =====
+  L.push({ name: 56, diff: 'medium', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+  ], tiles: [
+    { row: 1, col: 4, type: 'teleport', pairId: 'A' },
+    { row: 4, col: 1, type: 'teleport', pairId: 'A' },
+  ], hint: 'A vertical that lands on the gate is whisked elsewhere.' });
+  L.push({ name: 57, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], tiles: [
+    { row: 0, col: 5, type: 'teleport', pairId: 'A' },
+    { row: 5, col: 5, type: 'teleport', pairId: 'A' },
+  ], hint: 'Teleport along the right column.' });
+  L.push({ name: 58, diff: 'hard', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 3, col: 4 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], tiles: [
+    { row: 1, col: 4, type: 'teleport', pairId: 'A' },
+    { row: 4, col: 4, type: 'teleport', pairId: 'A' },
+  ], hint: 'Two verticals share one teleport corridor.' });
+  L.push({ name: 59, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 2 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+  ], tiles: [
+    { row: 1, col: 5, type: 'teleport', pairId: 'A' },
+    { row: 4, col: 0, type: 'teleport', pairId: 'A' },
+    { row: 0, col: 3, type: 'teleport', pairId: 'B' },
+    { row: 5, col: 1, type: 'teleport', pairId: 'B' },
+  ], hint: 'Two teleport pairs let you reroute around the puzzle.' });
+  L.push({ name: 60, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 4, extent: +1 },
+    { dir: 'v', len: 2, row: 3, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+  ], tiles: [
+    { row: 0, col: 0, type: 'teleport', pairId: 'A' },
+    { row: 5, col: 5, type: 'teleport', pairId: 'A' },
+  ], hint: 'Teleport + swivel: anchored block defines the safe zone.' });
+
+  // ===== 61-80: combo expert =====
+  L.push({ name: 61, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 4, extent: +1 },
+    { dir: 'v', len: 2, row: 3, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Swivel above heavy — rotation depends on heavy not having moved.' });
+  L.push({ name: 62, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 5, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 5, keyId: 'A' },
+    { dir: 'v', len: 3, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], tiles: [
+    { row: 4, col: 4, type: 'oneway', arrowDir: 'right' },
+  ], hint: 'Key escorted along a one-way to reach its lock.' });
+  L.push({ name: 63, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, breakable: true },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 4, col: 3, extent: +1 },
+  ], hint: 'Breakable + swivel + filler — pick your shatter angle.' });
+  L.push({ name: 64, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 3 },
+  ], hint: 'Long heavy in the lane — minimum motion is the goal.' });
+  L.push({ name: 65, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 3, row: 0, col: 5, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'v', len: 2, row: 3, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 3 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Long swivel along right — clear the arc.' });
+  L.push({ name: 66, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 0, col: 5, lockId: 'B' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 5, keyId: 'B' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Two locks in adjacent columns — keys interlock.' });
+  L.push({ name: 67, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 5, extent: +1 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 3, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+  ], hint: 'Two swivels block the lane — each rotation has tradeoffs.' });
+  L.push({ name: 68, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4, breakable: true },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy + breakable: shatter saves heavy moves.' });
+  L.push({ name: 69, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+  ], tiles: [
+    { row: 1, col: 4, type: 'teleport', pairId: 'A' },
+    { row: 4, col: 1, type: 'teleport', pairId: 'A' },
+    { row: 3, col: 5, type: 'oneway', arrowDir: 'down' },
+  ], hint: 'Teleport in, one-way locks the destination.' });
+  L.push({ name: 70, diff: 'expert', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'v', len: 2, row: 1, col: 4, breakable: true },
+  ], gravity: 'down', hint: 'Gravity + breakable: shatter cleans the lane.' });
+
+  // ===== 71-80: master tier =====
+  L.push({ name: 71, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 5, extent: +1 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+  ], hint: 'Two swivels mid-board — interleaved rotations.' });
+  L.push({ name: 72, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 3, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 1 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+  ], hint: 'Two heavies stack the cost — be efficient.' });
+  L.push({ name: 73, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+    { kind: 'swivel', dir: 'h', len: 2, row: 4, col: 4, extent: +1 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+  ], hint: 'Swivel below — key navigates around the pivot.' });
+  L.push({ name: 74, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+    { dir: 'v', len: 2, row: 1, col: 3, breakable: true },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+  ], tiles: [
+    { row: 4, col: 4, type: 'oneway', arrowDir: 'down' },
+  ], hint: 'Breakable + one-way + dense lane.' });
+  L.push({ name: 75, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 5, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Long lock dominates right column — key must navigate dense board.' });
+  L.push({ name: 76, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 5, extent: +1 },
+    { dir: 'v', len: 2, row: 3, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 1 },
+  ], hint: 'Swivel + filler block stack — squeeze through.' });
+  L.push({ name: 77, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 4 },
+  ], hint: 'High density. Find the unblocking thread.' });
+  L.push({ name: 78, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, breakable: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 0, col: 0, extent: +1 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 5 },
+  ], hint: 'Swivel up top, breakable in the lane.' });
+  L.push({ name: 79, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 1, col: 5, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy + lock + dense board.' });
+  L.push({ name: 80, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 4, extent: +1 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+  ], hint: 'Mirrored swivels — only one rotation order works.' });
+
+  // ===== 81-100: master / final pack =====
+  L.push({ name: 81, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 3, row: 0, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 5 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy len-3 — every cell costs.' });
+  L.push({ name: 82, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 3, row: 0, col: 5, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 3 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 4 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+  ], hint: 'Long swivel — sweep the rotation arc clean.' });
+  L.push({ name: 83, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, breakable: true },
+    { dir: 'v', len: 2, row: 1, col: 5, breakable: true },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Twin breakables — one shatter is enough.' });
+  L.push({ name: 84, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+  ], tiles: [
+    { row: 3, col: 4, type: 'oneway', arrowDir: 'up' },
+  ], hint: 'Key must travel up — only one direction allowed.' });
+  L.push({ name: 85, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+  ], gravity: 'down', hint: 'Gravity master — every move triggers a cascade.' });
+  L.push({ name: 86, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+  ], tiles: [
+    { row: 4, col: 0, type: 'teleport', pairId: 'A' },
+    { row: 0, col: 5, type: 'teleport', pairId: 'A' },
+  ], hint: 'Teleport across — but watch where you land.' });
+  L.push({ name: 87, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 3, col: 5, extent: -1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy + swivel pointing up.' });
+  L.push({ name: 88, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'v', len: 3, row: 0, col: 5 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Key in mid-row — clear its lane to reach the lock.' });
+  L.push({ name: 89, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 0, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 5, col: 0, extent: +1 },
+    { dir: 'v', len: 2, row: 1, col: 4 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 1 },
+    { dir: 'v', len: 2, row: 4, col: 5 },
+  ], hint: 'Top + bottom swivels frame the puzzle.' });
+  L.push({ name: 90, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 1, col: 5, breakable: true },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy stays. Breakable goes. Decide the order.' });
+  L.push({ name: 91, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, lockId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 4, keyId: 'A' },
+    { dir: 'v', len: 2, row: 0, col: 5, lockId: 'B' },
+    { dir: 'v', len: 2, row: 4, col: 5, keyId: 'B' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Two locks side by side — keys interleaved.' });
+  L.push({ name: 92, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 3, row: 0, col: 5, extent: +1 },
+    { dir: 'v', len: 2, row: 0, col: 3, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 3, col: 1 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Long swivel + heavy — only one move budget plan works.' });
+  L.push({ name: 93, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4 },
+    { dir: 'v', len: 2, row: 1, col: 5 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+    { dir: 'h', len: 2, row: 3, col: 2 },
+  ], tiles: [
+    { row: 4, col: 0, type: 'teleport', pairId: 'A' },
+    { row: 4, col: 5, type: 'teleport', pairId: 'A' },
+    { row: 5, col: 0, type: 'oneway', arrowDir: 'right' },
+  ], hint: 'Teleport pair + one-way exit.' });
+  L.push({ name: 94, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 0, col: 0, target: true },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 0, extent: +1 },
+    { kind: 'swivel', dir: 'h', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'h', len: 2, row: 1, col: 4 },
+  ], gravity: 'down', hint: 'Gravity + heavy horizontal — slide it once, it falls.' });
+  L.push({ name: 95, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 4, extent: +1 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 3, col: 4, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 2, row: 5, col: 0 },
+    { dir: 'h', len: 2, row: 5, col: 3 },
+    { dir: 'v', len: 2, row: 3, col: 1 },
+  ], hint: 'Two swivels, both must rotate — order is the puzzle.' });
+  L.push({ name: 96, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+    { dir: 'v', len: 2, row: 4, col: 1, breakable: true },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 5 },
+    { dir: 'h', len: 3, row: 5, col: 2 },
+  ], hint: 'Breakable opens key\'s path; lock blocks target.' });
+  L.push({ name: 97, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 0, col: 5, breakable: true },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy + breakable. The shatter clears the cheap path.' });
+  L.push({ name: 98, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 1, col: 5, extent: +1 },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 3, extent: +1 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 2, row: 3, col: 0 },
+    { dir: 'v', len: 2, row: 3, col: 4 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+    { dir: 'v', len: 2, row: 4, col: 1 },
+  ], hint: 'Two swivels — one near, one far. Both rotate.' });
+  L.push({ name: 99, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { dir: 'v', len: 2, row: 0, col: 4, heavy: 2 },
+    { dir: 'v', len: 2, row: 1, col: 5, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'v', len: 2, row: 0, col: 2 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Heavy + lock + key — three threads.' });
+  L.push({ name: 100, diff: 'master', blocks: [
+    { dir: 'h', len: 2, row: 2, col: 0, target: true },
+    { kind: 'swivel', dir: 'v', len: 2, row: 0, col: 5, extent: +1 },
+    { dir: 'v', len: 2, row: 1, col: 4, lockId: 'A' },
+    { dir: 'h', len: 2, row: 3, col: 0, keyId: 'A' },
+    { dir: 'v', len: 2, row: 0, col: 3, heavy: 2 },
+    { dir: 'h', len: 2, row: 0, col: 0 },
+    { dir: 'h', len: 3, row: 5, col: 0 },
+  ], hint: 'Final puzzle: every mechanic in play. Find the elegant path.' });
+
+  // Boot
+  window.__plg.loadLevel(0);
+  // Background BFS verification: report unsolvable levels.
+  setTimeout(() => {
     const results = [];
-    LEVELS.forEach((lvl, i) => {
-      const d = bfsSolve(lvl.cars);
-      results.push({ level: lvl.name, diff: lvl.diff, minMoves: d });
-      if (d < 0) console.warn(`[Parking Lot Escape] Level ${lvl.name} (${lvl.diff}) — UNSOLVABLE`);
-    });
+    for (let i = 0; i < L.length; i++) {
+      const lvl = L[i];
+      const init = (lvl.blocks || lvl.cars || []).map((b, j) => window.__plg.normalizeBlock(b, j));
+      const t = (lvl.tiles || []).map(window.__plg.normalizeTile);
+      const r = window.__plg.bfsSolve(init, t, lvl.gravity || null);
+      results.push({ level: lvl.name, diff: lvl.diff, minMoves: r.minMoves });
+      if (r.minMoves < 0) console.warn(`[Parking Lot Escape] Level ${lvl.name} (${lvl.diff}) — UNSOLVABLE`);
+    }
     console.table(results);
-  }
-
-  // ------------ Boot ------------
-  loadLevel(0);
-  // Run BFS verification on next tick so initial render isn't blocked
-  setTimeout(verifyLevels, 50);
-
+  }, 100);
 })();
 </script>
 </body>
